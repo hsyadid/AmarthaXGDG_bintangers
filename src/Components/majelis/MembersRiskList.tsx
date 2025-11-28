@@ -1,4 +1,5 @@
 import React from 'react';
+import { getRiskScoreBgColor, getRiskScoreTextColor } from '@/lib/risk-utils';
 
 interface MemberRisk {
     name: string;
@@ -33,13 +34,13 @@ export default function MembersRiskList({ members = [] }: MembersRiskListProps) 
                     const isWorsening = member.riskChange > 0;
                     const changeColor = isImprovement ? "text-green-500" : isWorsening ? "text-red-500" : "text-gray-400";
                     const changeText = isImprovement
-                        ? `${member.riskChange.toFixed(1)}%`
+                        ? `${member.riskChange}%`
                         : isWorsening
-                            ? `+${member.riskChange.toFixed(1)}%`
+                            ? `+${member.riskChange}%`
                             : "~";
 
-                    const riskColorBg = member.risk < 10 ? "bg-green-50" : member.risk < 20 ? "bg-yellow-50" : "bg-red-50";
-                    const riskColorText = member.risk < 10 ? "text-green-600" : member.risk < 20 ? "text-yellow-600" : "text-red-600";
+                    const riskColorBg = getRiskScoreBgColor(member.risk);
+                    const riskColorText = getRiskScoreTextColor(member.risk);
 
                     return (
                         <div key={index} className="bg-gray-50 rounded-2xl border border-gray-200 p-4 flex justify-between items-center">

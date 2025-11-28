@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react';
 
-import BorrowerHeader from "@/Components/cashflow/BorrowerHeader";
-import RiskScoreCard from "@/Components/cashflow/RiskScoreCard";
-import GroupInfoCard from "@/Components/cashflow/GroupInfoCard";
-import MembersRiskList from "@/Components/cashflow/MembersRiskList";
-import InputCallToAction from "@/Components/cashflow/InputCallToAction";
+import BorrowerHeader from "@/Components/borrower/BorrowerHeader";
+import RiskScoreCard from "@/Components/borrower/RiskScoreCard";
+import GroupInfoCard from "@/Components/borrower/GroupInfoCard";
+import MembersRiskList from "@/Components/majelis/MembersRiskList";
+import InputCallToAction from "@/Components/borrower/InputCallToAction";
 import BottomNavigation from "@/Components/cashflow/BottomNavigation";
 
 export default function BorrowerPage() {
@@ -63,8 +63,7 @@ export default function BorrowerPage() {
           <InputCallToAction />
           <GroupInfoCard
             majelisName={data?.majelis?.name}
-            memberCount={data?.majelis?.memberCount}
-            avgRisk={data?.majelis?.avgRisk}
+            highRiskCount={data?.majelis?.highRiskCount}
             trend={data?.majelis?.trend}
           />
           <MembersRiskList

@@ -86,21 +86,6 @@ export default function MajelisDetailPage() {
               <div className="text-red-600">2 member</div>
             </div>
           </div>
-
-          <div className="mt-6">
-            <h4 className="text-slate-700 text-lg font-semibold">Majelis Risk Trend</h4>
-            <div className="mt-4 bg-gray-50 rounded p-4">
-              {/* Placeholder for trend chart - static markers to match design */}
-              <div className="grid grid-cols-6 gap-2 text-center text-xs text-gray-500">
-                <div>Week 1</div>
-                <div>Week 2</div>
-                <div>Week 3</div>
-                <div>Week 4</div>
-                <div>Week 5</div>
-                <div>Week 6</div>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Members list table */}

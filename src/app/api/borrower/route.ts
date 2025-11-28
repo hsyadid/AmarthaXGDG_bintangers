@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getCustomerByCustomerNumber } from '@/actions/customer';
 import { getRiskCustomerByCustomerAndDate, getRiskMajelisByCustomerAndDate } from '@/actions/risk';
-
-
+import { getRiskLevel } from '@/lib/risk-utils';
 
 export function getWIBDate(): Date {
     const now = new Date(); // Ini mengambil waktu asli (misal: UTC 20:15)
@@ -18,8 +17,6 @@ export function getWIBDate(): Date {
     fakeWIB.setHours(0, 0, 0, 0);
     return fakeWIB;
 }
-
-
 
 export async function GET() {
     try {
@@ -41,18 +38,20 @@ export async function GET() {
 
         // getRiskCustomerByCustomerAndDate handles fallback logic internally
         const currentRiskRes = await getRiskCustomerByCustomerAndDate(customerNumber, today);
-        const currentRisk = currentRiskRes.success && currentRiskRes.data ? currentRiskRes.data.risk : 0;
+        const currentRiskRaw = currentRiskRes.success && currentRiskRes.data ? currentRiskRes.data.risk : 0;
+        const currentRisk = currentRiskRaw * 100; // Convert to percentage
 
         // Determine previous risk based on the date of the current risk record
-        let previousRisk = 0;
+        let previousRiskRaw = 0;
         if (currentRiskRes.success && currentRiskRes.data) {
             const effectiveDate = new Date(currentRiskRes.data.date);
             const prevDate = new Date(effectiveDate);
             prevDate.setDate(prevDate.getDate() - 7);
 
             const prevRiskRes = await getRiskCustomerByCustomerAndDate(customerNumber, prevDate);
-            previousRisk = prevRiskRes.success && prevRiskRes.data ? prevRiskRes.data.risk : 0;
+            previousRiskRaw = prevRiskRes.success && prevRiskRes.data ? prevRiskRes.data.risk : 0;
         }
+        const previousRisk = previousRiskRaw * 100; // Convert to percentage
 
         const riskChange = currentRisk - previousRisk;
 
@@ -72,19 +71,20 @@ export async function GET() {
             membersData = await Promise.all(memberNumbers.map(async (num: string) => {
                 // Fetch member risk with same smart logic
                 const cRes = await getRiskCustomerByCustomerAndDate(num, today);
-                const cRisk = cRes.success && cRes.data ? cRes.data.risk : 0;
-                
-                console.log(cRisk);
+                const cRiskRaw = cRes.success && cRes.data ? cRes.data.risk : 0;
+                const cRisk = cRiskRaw * 100; // Convert to percentage
+
                 // Calculate member previous risk
-                let cPrevRisk = 0;
+                let cPrevRiskRaw = 0;
                 if (cRes.success && cRes.data) {
                     const cEffectiveDate = new Date(cRes.data.date);
                     const cPrevDate = new Date(cEffectiveDate);
                     cPrevDate.setDate(cPrevDate.getDate() - 7);
 
                     const cPrevRes = await getRiskCustomerByCustomerAndDate(num, cPrevDate);
-                    cPrevRisk = cPrevRes.success && cPrevRes.data ? cPrevRes.data.risk : 0;
+                    cPrevRiskRaw = cPrevRes.success && cPrevRes.data ? cPrevRes.data.risk : 0;
                 }
+                const cPrevRisk = cPrevRiskRaw * 100; // Convert to percentage
 
                 return {
                     name: `Anggota ${num.substring(0, 4)}`, // Dummy name
@@ -93,10 +93,14 @@ export async function GET() {
                 };
             }));
 
+            // Calculate high risk count (risk > 20%)
+            const highRiskCount = membersData.filter((m: any) => m.risk > 20).length;
+
             majelisData = {
                 name: "Majelis Sejahtera", // Dummy name
                 memberCount: memberNumbers.length,
-                avgRisk: majelisRecord.risk,
+                avgRisk: majelisRecord.risk * 100, // Convert to percentage
+                highRiskCount: highRiskCount, // Add highRiskCount
                 trend: "Membaik"
             };
         } else {
@@ -105,6 +109,7 @@ export async function GET() {
                 name: "Majelis Belum Terdaftar",
                 memberCount: 0,
                 avgRisk: 0,
+                highRiskCount: 0,
                 trend: "-"
             };
         }
@@ -118,7 +123,7 @@ export async function GET() {
             },
             riskScore: {
                 current: currentRisk,
-                level: currentRisk < 5 ? "Low" : currentRisk < 20 ? "Moderate" : "High",
+                level: getRiskLevel(currentRisk), // getRiskLevel handles 0-100 range correctly
                 previous: previousRisk,
                 change: riskChange
             },
