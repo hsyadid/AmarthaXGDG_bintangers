@@ -8,9 +8,9 @@ export default function InputCallToAction() {
                     <h3 className="text-lg font-semibold mb-2">Sudah input cashflow-mu hari ini?</h3>
                     <p className="text-white/80 text-sm">Jaga konsistensi untuk mengurangi risk score Anda</p>
                 </div>
-                <button className="bg-white text-[#8E44AD] font-medium text-sm px-4 py-2 rounded whitespace-nowrap">
+                <a href="/borrower/input" className="bg-white text-[#8E44AD] font-medium text-sm px-4 py-2 rounded whitespace-nowrap">
                     + Tambah
-                </button>
+                </a>
             </div>
         </div>
     );

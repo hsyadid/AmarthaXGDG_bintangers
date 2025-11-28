@@ -49,15 +49,101 @@ export async function getRiskCustomer(id: string) {
   return { success: true, data: record };
 }
 
+// action/risk.ts
+
+function getLastSaturday(date: Date) {
+  const d = new Date(date);
+  const day = d.getDay(); // 0=Sun, 6=Sat
+
+  // jika hari ini Sabtu, gunakan hari ini
+  if (day === 6) {
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+
+  const diff = (day + 1);
+  d.setDate(d.getDate() - diff);
+  d.setHours(0, 0, 0, 0);
+
+  return d;
+}
+
 export async function getRiskCustomerByCustomerAndDate(
   customer_number: string,
   date: Date
 ) {
-  const finalDate = normalizeDate(date);
+  // 1. Hitung target hari Sabtu berdasarkan input
+  let targetDate = getLastSaturday(date);
 
-  const record = await prisma.risk_customers.findFirst({
-    where: { customer_number, date: finalDate },
-  });
+  // Helper untuk query DB
+  const findRecord = async (d: Date) => {
+    const startOfDay = new Date(d);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(d);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return prisma.risk_customers.findFirst({
+      where: {
+        customer_number,
+        date: {
+          gte: startOfDay,
+          lte: endOfDay
+        }
+      },
+    });
+  };
+
+  // 2. Coba cari data untuk targetDate
+  let record = await findRecord(targetDate);
+
+  // 3. Jika tidak ada, mundur 1 minggu (Sabtu sebelumnya)
+  if (!record) {
+    const prevSaturday = new Date(targetDate);
+    prevSaturday.setDate(prevSaturday.getDate() - 7);
+    record = await findRecord(prevSaturday);
+  }
+
+  return record
+    ? { success: true, data: record }
+    : { success: false, error: "Not found" };
+}
+
+export async function getRiskMajelisByCustomerAndDate(
+  customer_number: string,
+  date: Date
+) {
+  // 1. Hitung target hari Sabtu
+  let targetDate = getLastSaturday(date);
+
+  // Helper untuk query DB
+  const findRecord = async (d: Date) => {
+    const startOfDay = new Date(d);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(d);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return prisma.risk_majelis.findFirst({
+      where: {
+        customer_number: {
+          has: customer_number
+        },
+        date: {
+          gte: startOfDay,
+          lte: endOfDay
+        }
+      },
+    });
+  };
+
+  // 2. Coba cari data untuk targetDate
+  let record = await findRecord(targetDate);
+
+  // 3. Jika tidak ada, mundur 1 minggu
+  if (!record) {
+    const prevSaturday = new Date(targetDate);
+    prevSaturday.setDate(prevSaturday.getDate() - 7);
+    record = await findRecord(prevSaturday);
+  }
 
   return record
     ? { success: true, data: record }

@@ -19,6 +19,7 @@ export default function BorrowerPage() {
         const res = await fetch('/api/borrower');
         if (res.ok) {
           const json = await res.json();
+          console.log(json);
           setData(json);
         }
       } catch (error) {
@@ -59,6 +60,7 @@ export default function BorrowerPage() {
             previousRisk={data?.riskScore?.previous}
             riskChange={data?.riskScore?.change}
           />
+          <InputCallToAction />
           <GroupInfoCard
             majelisName={data?.majelis?.name}
             memberCount={data?.majelis?.memberCount}
@@ -68,7 +70,6 @@ export default function BorrowerPage() {
           <MembersRiskList
             members={data?.members}
           />
-          <InputCallToAction />
         </div>
       </div>
 

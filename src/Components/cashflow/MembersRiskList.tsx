@@ -50,13 +50,13 @@ export default function MembersRiskList({ members = [] }: MembersRiskListProps) 
                                 )}
                                 {member.riskChange === 0 && (
                                     <div className={`${riskColorBg} rounded-full px-3 py-1 w-fit mt-1`}>
-                                        <span className={`${riskColorText} text-xs`}>Risk: {member.risk.toFixed(1)}%</span>
+                                        <span className={`${riskColorText} text-xs`}>Risk: {member.risk}%</span>
                                     </div>
                                 )}
                             </div>
                             {member.riskChange !== 0 ? (
                                 <div className={`${riskColorBg} rounded-full px-3 py-1 whitespace-nowrap`}>
-                                    <span className={`${riskColorText} text-xs`}>Risk: {member.risk.toFixed(1)}%</span>
+                                    <span className={`${riskColorText} text-xs`}>Risk: {member.risk}%</span>
                                 </div>
                             ) : (
                                 <span className="text-gray-400 text-xs">~</span>

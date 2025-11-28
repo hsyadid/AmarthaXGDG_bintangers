@@ -1,7 +1,25 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getCustomerByCustomerNumber } from '@/actions/customer';
-import { getRiskCustomerByCustomerAndDate } from '@/actions/risk';
+import { getRiskCustomerByCustomerAndDate, getRiskMajelisByCustomerAndDate } from '@/actions/risk';
+
+
+
+export function getWIBDate(): Date {
+    const now = new Date(); // Ini mengambil waktu asli (misal: UTC 20:15)
+
+    // Kita paksa tambah 7 jam (dalam milidetik)
+    // 7 jam x 60 menit x 60 detik x 1000 ms
+    const sevenHoursInMillis = 7 * 60 * 60 * 1000;
+
+    // Buat Date baru yang waktunya sudah digeser
+    // Jadi: 20:15 + 7 jam = 03:15
+    const fakeWIB = new Date(now.getTime() + sevenHoursInMillis);
+    fakeWIB.setHours(0, 0, 0, 0);
+    return fakeWIB;
+}
+
+
 
 export async function GET() {
     try {
@@ -18,77 +36,71 @@ export async function GET() {
         }
         const customer = customerRes.data;
 
-        // 2. Fetch Customer Risk (Today & Last Week)
-        const today = new Date();
-        const lastWeek = new Date(today);
-        lastWeek.setDate(today.getDate() - 7);
+        // 2. Fetch Customer Risk (Smart Logic)
+        const today = getWIBDate();
 
-        // Helper to get risk or default
-        const getRisk = async (date: Date) => {
-            const res = await getRiskCustomerByCustomerAndDate(customerNumber, date);
-            return res.success && res.data ? res.data.risk : null;
-        };
+        // getRiskCustomerByCustomerAndDate handles fallback logic internally
+        const currentRiskRes = await getRiskCustomerByCustomerAndDate(customerNumber, today);
+        const currentRisk = currentRiskRes.success && currentRiskRes.data ? currentRiskRes.data.risk : 0;
 
-        const currentRisk = await getRisk(today) ?? 0; // Default to 0 if not found
-        const previousRisk = await getRisk(lastWeek) ?? 0;
+        // Determine previous risk based on the date of the current risk record
+        let previousRisk = 0;
+        if (currentRiskRes.success && currentRiskRes.data) {
+            const effectiveDate = new Date(currentRiskRes.data.date);
+            const prevDate = new Date(effectiveDate);
+            prevDate.setDate(prevDate.getDate() - 7);
+
+            const prevRiskRes = await getRiskCustomerByCustomerAndDate(customerNumber, prevDate);
+            previousRisk = prevRiskRes.success && prevRiskRes.data ? prevRiskRes.data.risk : 0;
+        }
+
         const riskChange = currentRisk - previousRisk;
 
-        // 3. Find Majelis
-        // We need to find a risk_majelis record where customer_numbers array contains our customerNumber
-        // Since we don't have a direct method, we'll use prisma directly.
-        // Assuming risk_majelis table exists as per risk.ts
-        const majelisRecord = await prisma.risk_majelis.findFirst({
-            where: {
-                customer_number: { // Changed to customer_number (singular) to match schema/risk.ts
-                    has: customerNumber
-                }
-            },
-            orderBy: {
-                date: 'desc'
-            }
-        });
+        // 3. Find Majelis (Smart Logic)
+        const majelisRes = await getRiskMajelisByCustomerAndDate(customerNumber, today);
 
         let majelisData = null;
         let membersData: any[] = [];
 
-        if (majelisRecord) {
-            // Calculate Majelis Stats
-            // Average risk of the majelis for the same date
-            // We can use the risk field from the record which seems to be the majelis risk
+        if (majelisRes.success && majelisRes.data) {
+            const majelisRecord = majelisRes.data;
 
             // Fetch members details
-            const memberNumbers = majelisRecord.customer_number; // Changed to customer_number (singular)
+            const memberNumbers = majelisRecord.customer_number; // Array of customer numbers
 
             // Fetch names and risks for all members
-            // We'll do this in parallel
             membersData = await Promise.all(memberNumbers.map(async (num: string) => {
-                const cRes = await getCustomerByCustomerNumber(num);
-                const rRes = await getRiskCustomerByCustomerAndDate(num, today);
-                const prevRRes = await getRiskCustomerByCustomerAndDate(num, lastWeek);
+                // Fetch member risk with same smart logic
+                const cRes = await getRiskCustomerByCustomerAndDate(num, today);
+                const cRisk = cRes.success && cRes.data ? cRes.data.risk : 0;
+                
+                console.log(cRisk);
+                // Calculate member previous risk
+                let cPrevRisk = 0;
+                if (cRes.success && cRes.data) {
+                    const cEffectiveDate = new Date(cRes.data.date);
+                    const cPrevDate = new Date(cEffectiveDate);
+                    cPrevDate.setDate(cPrevDate.getDate() - 7);
 
-                const cRisk = rRes.success && rRes.data ? rRes.data.risk : 0;
-                const cPrevRisk = prevRRes.success && prevRRes.data ? prevRRes.data.risk : 0;
+                    const cPrevRes = await getRiskCustomerByCustomerAndDate(num, cPrevDate);
+                    cPrevRisk = cPrevRes.success && cPrevRes.data ? cPrevRes.data.risk : 0;
+                }
 
                 return {
-                    // Checking schema again: Customer model has no 'name' field. 
-                    // It has: customer_number, date_of_birth, marital_status, religion, purpose, preference.
-                    // The UI shows names like "Siti Rahayu". 
-                    // The user said "jika data yang perlu ditampilkan di frontendnya tidak tersedia dari database, maka gunakna dummy saja seperit nama, dsb"
-                    // So I will generate a dummy name based on the customer number or just use a placeholder.
-                    name: `Anggota ${num.substring(0, 4)}`,
+                    name: `Anggota ${num.substring(0, 4)}`, // Dummy name
                     risk: cRisk,
                     riskChange: cRisk - cPrevRisk
                 };
             }));
 
             majelisData = {
-                name: "Majelis Sejahtera", // Dummy name as per instructions if not available
+                name: "Majelis Sejahtera", // Dummy name
                 memberCount: memberNumbers.length,
-                avgRisk: majelisRecord.risk, // Assuming this is the pre-calculated avg risk
-                trend: "Membaik" // Logic to calculate trend could be added here
+                avgRisk: majelisRecord.risk,
+                trend: "Membaik"
             };
         } else {
-            // Dummy data if no majelis found, to avoid breaking UI
+            // Dummy data if no majelis found
             majelisData = {
                 name: "Majelis Belum Terdaftar",
                 memberCount: 0,

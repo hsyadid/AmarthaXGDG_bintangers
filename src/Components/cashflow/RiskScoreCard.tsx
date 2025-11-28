@@ -34,7 +34,7 @@ export default function RiskScoreCard({
                     <div className="flex justify-between items-center">
                         <span className="text-lg font-semibold text-slate-700">Default Risk</span>
                         <div className="bg-yellow-50 rounded-full px-4 py-1">
-                            <span className="text-yellow-600 font-normal text-sm">{riskScore.toFixed(1)}%</span>
+                            <span className="text-yellow-600 font-normal text-sm">{riskScore}%</span>
                         </div>
                     </div>
 
@@ -45,7 +45,7 @@ export default function RiskScoreCard({
                         </div>
                         <div className="flex justify-between items-start">
                             <span className="text-gray-600 text-sm">Minggu Lalu</span>
-                            <span className="text-gray-500 text-sm">{previousRisk.toFixed(1)}%</span>
+                            <span className="text-gray-500 text-sm">{previousRisk}%</span>
                         </div>
                         <div className="flex justify-between items-start">
                             <span className="text-gray-600 text-sm">Perubahan</span>

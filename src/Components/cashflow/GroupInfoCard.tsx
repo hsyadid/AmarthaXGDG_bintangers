@@ -38,7 +38,7 @@ export default function GroupInfoCard({
                 {/* Average Risk */}
                 <div className="bg-gradient-to-br from-yellow-100/50 to-yellow-50/30 rounded-2xl p-4">
                     <div className="text-gray-600 text-sm mb-2">📈 Rata-rata Kemungkinan Gagal Bayar</div>
-                    <div className="text-yellow-600 text-base font-normal">{avgRisk.toFixed(1)}%</div>
+                    <div className="text-yellow-600 text-base font-normal">{avgRisk}%</div>
                 </div>
 
                 {/* Trend */}
