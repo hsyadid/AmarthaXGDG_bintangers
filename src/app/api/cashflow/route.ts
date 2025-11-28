@@ -5,7 +5,7 @@ export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
         const { mode, items, total } = body;
-        const CUSTOMER_NUMBER = "79763ff37301e2867e58e0becbd4fa84b2ec902f19bbec2154c0e750c8ac5356";
+        const CUSTOMER_NUMBER = process.env.CUSTOMER_NUMBER;
 
         if (!mode || (mode !== "list" && mode !== "total")) {
             return NextResponse.json(

@@ -163,3 +163,25 @@ model LoanSnapshot {
   @@index([dpd])
   @@map("loan_snapshots")
 }
+
+// Risk Models
+model risk_customers {
+  id              String   @id @default(uuid())
+  customer_number String
+  risk            Float
+  date            DateTime @default(now())
+
+  @@index([customer_number])
+  @@index([date])
+}
+
+model risk_majelis {
+  id              String   @id @default(uuid())
+  id_majelis      String
+  customer_number String[]
+  risk            Float
+  date            DateTime @default(now())
+
+  @@index([id_majelis])
+  @@index([date])
+}

@@ -1,0 +1,135 @@
+'use server';
+
+import { prisma } from "@/lib/db";
+import { Decimal } from "@prisma/client/runtime/library";
+
+// TYPES
+export interface RiskCustomerInput {
+  customer_number: string;
+  risk: number;
+  date?: Date;
+}
+
+export interface RiskMajelisInput {
+  id_majelis: string;
+  customer_numbers: string[];
+  risk: number;
+  date?: Date;
+}
+
+// UTIL
+function normalizeDate(date: Date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/* ============================
+     RISK CUSTOMER CRUD
+============================= */
+
+export async function createRiskCustomer(data: RiskCustomerInput) {
+  const finalDate = normalizeDate(data.date || new Date());
+
+  const record = await prisma.risk_customers.create({
+    data: {
+      id: crypto.randomUUID(),
+      customer_number: data.customer_number,
+      risk: data.risk,
+      date: finalDate,
+    },
+  });
+
+  return { success: true, data: record };
+}
+
+export async function getRiskCustomer(id: string) {
+  const record = await prisma.risk_customers.findUnique({ where: { id } });
+  if (!record) return { success: false, error: "Not found" };
+  return { success: true, data: record };
+}
+
+export async function getRiskCustomerByCustomerAndDate(
+  customer_number: string,
+  date: Date
+) {
+  const finalDate = normalizeDate(date);
+
+  const record = await prisma.risk_customers.findFirst({
+    where: { customer_number, date: finalDate },
+  });
+
+  return record
+    ? { success: true, data: record }
+    : { success: false, error: "Not found" };
+}
+
+export async function updateRiskCustomer(customer_number: string, date: Date, risk: number) {
+  const finalDate = normalizeDate(date);
+
+  const record = await prisma.risk_customers.updateMany({
+    where: { customer_number, date: finalDate },
+    data: { risk },
+  });
+
+  return { success: true, updated: record.count };
+}
+
+export async function deleteRiskCustomer(id: string) {
+  await prisma.risk_customers.delete({ where: { id } });
+  return { success: true };
+}
+
+/* ============================
+     RISK MAJELIS CRUD
+============================= */
+
+export async function createRiskMajelis(data: RiskMajelisInput) {
+  const finalDate = normalizeDate(data.date || new Date());
+
+  const record = await prisma.risk_majelis.create({
+    data: {
+      id: crypto.randomUUID(),
+      id_majelis: data.id_majelis,
+      customer_number: data.customer_numbers, // array
+      risk: data.risk,
+      date: finalDate,
+    },
+  });
+
+  return { success: true, data: record };
+}
+
+export async function getRiskMajelis(id: string) {
+  const record = await prisma.risk_majelis.findUnique({ where: { id } });
+  if (!record) return { success: false, error: "Not found" };
+  return { success: true, data: record };
+}
+
+export async function getRiskMajelisByDate(id_majelis: string, date: Date) {
+  const finalDate = normalizeDate(date);
+
+  const record = await prisma.risk_majelis.findFirst({
+    where: { id_majelis, date: finalDate },
+  });
+
+  return record
+    ? { success: true, data: record }
+    : { success: false, error: "Not found" };
+}
+
+export async function updateRiskMajelis(id_majelis: string, date: Date, risk: number) {
+  const finalDate = normalizeDate(date);
+
+  const updated = await prisma.risk_majelis.updateMany({
+    where: { id_majelis, date: finalDate },
+    data: { risk },
+  });
+
+  return { success: true, updated: updated.count };
+}
+
+export async function deleteRiskMajelis(id: string) {
+  await prisma.risk_majelis.delete({ where: { id } });
+  return { success: true };
+}

@@ -54,7 +54,7 @@ export default function ManualInputPage() {
       const res = await getCashFlowTotal({
         startDate: startDate,
         endDate: endDate,
-        customer_number: "79763ff37301e2867e58e0becbd4fa84b2ec902f19bbec2154c0e750c8ac5356" // Hardcoded for now as per previous context
+        customer_number: process.env.CUSTOMER_NUMBER // Hardcoded for now as per previous context
       });
 
       if (res.success && res.data) {
