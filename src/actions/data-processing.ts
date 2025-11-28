@@ -197,7 +197,7 @@ export async function getCustomersByBranch(branch_id: string) {
     // Extract unique customer numbers
     const customerNumbers = [
       ...new Set(
-        tasks.flatMap((task) => task.participants.map((p) => p.customer_number))
+        tasks.flatMap((task) => task.participants.map((p) => p.participant_id))
       ),
     ];
 
