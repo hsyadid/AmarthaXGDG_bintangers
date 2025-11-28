@@ -1,116 +1,24 @@
 import React from "react";
+import { 
+  getHighRiskMajelisCount, 
+  getHighRiskBorrowersCount,
+  getMajelisRiskAnalytics,
+  getBorrowerRiskAnalytics
+} from "@/actions/risk";
+import { getRiskScoreBgColor, getRiskScoreTextColor } from "@/lib/risk-utils";
 
-export default function RiskAnalyticsPage() {
-  const majelisList = [
-    {
-      id: 1,
-      name: "Majelis Sejahtera",
-      code: "MJS-001",
-      members: 15,
-      riskScore: 8.5,
-      trend: "up",
-      status: "good",
-    },
-    {
-      id: 2,
-      name: "Majelis Berkah",
-      code: "MJB-002",
-      members: 12,
-      riskScore: 24.8,
-      trend: "down",
-      status: "bad",
-    },
-    {
-      id: 3,
-      name: "Majelis Maju Bersama",
-      code: "MMB-003",
-      members: 18,
-      riskScore: 32.8,
-      trend: "down",
-      status: "bad",
-    },
-    {
-      id: 4,
-      name: "Majelis Harmoni",
-      code: "MJH-004",
-      members: 10,
-      riskScore: 5.5,
-      trend: "stable",
-      status: "good",
-    },
-    {
-      id: 5,
-      name: "Majelis Bahagia",
-      code: "MJB-005",
-      members: 14,
-      riskScore: 18.5,
-      trend: "down",
-      status: "warning",
-    },
-  ];
+export default async function RiskAnalyticsPage() {
+  // Fetch data from database
+  const highRiskMajelisData = await getHighRiskMajelisCount();
+  const highRiskBorrowersData = await getHighRiskBorrowersCount();
+  const majelisAnalyticsData = await getMajelisRiskAnalytics();
+  const borrowerAnalyticsData = await getBorrowerRiskAnalytics();
 
-  const borrowersList = [
-    {
-      id: 1,
-      name: "Ani Susanti",
-      business: "Toko Sayur",
-      riskScore: 8.5,
-      trend: "up",
-      status: "good",
-    },
-    {
-      id: 2,
-      name: "Rina Wulandari",
-      business: "Katering",
-      riskScore: 18.5,
-      trend: "down",
-      status: "warning",
-    },
-    {
-      id: 3,
-      name: "Sri Mulyani",
-      business: "Salon Kecantikan",
-      riskScore: 18.5,
-      trend: "down",
-      status: "warning",
-    },
-    {
-      id: 4,
-      name: "Putri Handayani",
-      business: "Warung Makan",
-      riskScore: 18.5,
-      trend: "down",
-      status: "warning",
-    },
-    {
-      id: 5,
-      name: "Siti Rahayu",
-      business: "Warung Kelontong",
-      riskScore: 8.5,
-      trend: "up",
-      status: "good",
-    },
-    {
-      id: 6,
-      name: "Dewi Kartika",
-      business: "Penjahit",
-      riskScore: 18.5,
-      trend: "down",
-      status: "warning",
-    },
-  ];
-
-  const getRiskScoreBgColor = (score: number) => {
-    if (score < 10) return "bg-green-50";
-    if (score < 20) return "bg-yellow-50";
-    return "bg-red-50";
-  };
-
-  const getRiskScoreTextColor = (score: number) => {
-    if (score < 10) return "text-green-600";
-    if (score < 20) return "text-yellow-600";
-    return "text-red-600";
-  };
+  const highRiskMajelisCount = highRiskMajelisData.success ? highRiskMajelisData.highRiskCount : 0;
+  const totalMajelisCount = highRiskMajelisData.success ? highRiskMajelisData.totalCount : 0;
+  const highRiskBorrowersCount = highRiskBorrowersData.success ? highRiskBorrowersData.highRiskCount : 0;
+  const majelisList = majelisAnalyticsData.success ? majelisAnalyticsData.data : [];
+  const borrowersList = borrowerAnalyticsData.success ? borrowerAnalyticsData.data : [];
 
   const getTrendIcon = (trend: string) => {
     if (trend === "up")
@@ -194,8 +102,8 @@ export default function RiskAnalyticsPage() {
               <h3 className="text-lg font-semibold text-[#8E44AD] mb-3">
                 High-Risk Majelis
               </h3>
-              <p className="text-3xl font-bold text-slate-700 mb-1">24</p>
-              <p className="text-sm text-gray-500">Out of 156 total</p>
+              <p className="text-3xl font-bold text-slate-700 mb-1">{highRiskMajelisCount}</p>
+              <p className="text-sm text-gray-500">Out of {totalMajelisCount} total</p>
             </div>
 
             {/* High-Risk Borrowers Card */}
@@ -218,7 +126,7 @@ export default function RiskAnalyticsPage() {
               <h3 className="text-lg font-semibold text-[#8E44AD] mb-3">
                 High-Risk Borrowers
               </h3>
-              <p className="text-3xl font-bold text-slate-700 mb-1">187</p>
+              <p className="text-3xl font-bold text-slate-700 mb-1">{highRiskBorrowersCount}</p>
               <p className="text-sm text-gray-500">Requires attention</p>
             </div>
           </div>
@@ -244,7 +152,7 @@ export default function RiskAnalyticsPage() {
                       Members
                     </th>
                     <th className="text-left px-6 py-3 text-sm font-bold text-gray-600">
-                      Avg Risk Score
+                     Risk Score
                     </th>
                     <th className="text-left px-6 py-3 text-sm font-bold text-gray-600">
                       Trend
@@ -255,13 +163,12 @@ export default function RiskAnalyticsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {majelisList.map((majelis) => (
-                    <tr key={majelis.id} className="border-b border-gray-200 hover:bg-gray-50">
+                  {majelisList.map((majelis, index) => (
+                    <tr key={majelis.id_majelis} className="border-b border-gray-200 hover:bg-gray-50">
                       <td className="px-6 py-4">
                         <div className="font-normal text-base text-slate-700">
-                          {majelis.name}
+                          {majelis.id_majelis}
                         </div>
-                        <div className="text-sm text-gray-500">{majelis.code}</div>
                       </td>
                       <td className="px-6 py-4 text-base text-slate-700">
                         {majelis.members}
@@ -273,16 +180,16 @@ export default function RiskAnalyticsPage() {
                               <div
                                 className="bg-cyan-600 h-full"
                                 style={{
-                                  width: `${Math.min(majelis.riskScore * 5, 100)}%`,
+                                  width: `${Math.min(majelis.riskScore * 100, 100)}%`,
                                 }}
                               />
                             </div>
                           </div>
                           <div
-                            className={`px-3 py-1 rounded-full text-sm font-normal ${getRiskScoreBgColor(majelis.riskScore)}`}
+                            className={`px-3 py-1 rounded-full text-sm font-normal ${getRiskScoreBgColor(majelis.riskScore * 100)}`}
                           >
-                            <span className={getRiskScoreTextColor(majelis.riskScore)}>
-                              {majelis.riskScore}%
+                            <span className={getRiskScoreTextColor(majelis.riskScore * 100)}>
+                              {(majelis.riskScore * 100)}%
                             </span>
                           </div>
                         </div>
@@ -305,7 +212,7 @@ export default function RiskAnalyticsPage() {
 
             {/* Pagination */}
             <div className="px-4 py-4 border-t border-gray-200 flex justify-between items-center">
-              <p className="text-sm text-gray-600">Showing 5 of 156 majelis</p>
+              <p className="text-sm text-gray-600">Showing {majelisList.length} of {totalMajelisCount} majelis</p>
               <div className="flex gap-2">
                 <button className="px-3 py-2 bg-gray-100 text-gray-900 rounded-md text-sm font-medium hover:bg-gray-200 transition">
                   Previous
@@ -350,9 +257,9 @@ export default function RiskAnalyticsPage() {
                 </thead>
                 <tbody>
                   {borrowersList.map((borrower) => (
-                    <tr key={borrower.id} className="border-b border-gray-200 hover:bg-gray-50">
+                    <tr key={borrower.customer_number} className="border-b border-gray-200 hover:bg-gray-50">
                       <td className="px-6 py-4 text-base text-slate-700">
-                        {borrower.name}
+                        {borrower.customer_number}
                       </td>
                       <td className="px-6 py-4 text-base text-gray-600">
                         {borrower.business}
@@ -364,16 +271,16 @@ export default function RiskAnalyticsPage() {
                               <div
                                 className="bg-cyan-600 h-full"
                                 style={{
-                                  width: `${Math.min(borrower.riskScore * 5, 100)}%`,
+                                  width: `${Math.min(borrower.riskScore * 100, 100)}%`,
                                 }}
                               />
                             </div>
                           </div>
                           <div
-                            className={`px-3 py-1 rounded-full text-sm font-normal ${getRiskScoreBgColor(borrower.riskScore)}`}
+                            className={`px-3 py-1 rounded-full text-sm font-normal ${getRiskScoreBgColor(borrower.riskScore * 100)}`}
                           >
-                            <span className={getRiskScoreTextColor(borrower.riskScore)}>
-                              {borrower.riskScore}%
+                            <span className={getRiskScoreTextColor(borrower.riskScore * 100)}>
+                              {(borrower.riskScore * 100)}%
                             </span>
                           </div>
                         </div>
@@ -396,7 +303,7 @@ export default function RiskAnalyticsPage() {
 
             {/* Pagination */}
             <div className="px-4 py-4 border-t border-gray-200 flex justify-between items-center">
-              <p className="text-sm text-gray-600">Showing 6 of 1,247 borrowers</p>
+              <p className="text-sm text-gray-600">Showing {borrowersList.length} borrowers</p>
               <div className="flex gap-2">
                 <button className="px-3 py-2 bg-gray-100 text-gray-900 rounded-md text-sm font-medium hover:bg-gray-200 transition">
                   Previous

@@ -1,7 +1,6 @@
 'use server';
 
 import { prisma } from "@/lib/db";
-import { Decimal } from "@prisma/client/runtime/library";
 
 // TYPES
 export interface RiskCustomerInput {
@@ -218,4 +217,230 @@ export async function updateRiskMajelis(id_majelis: string, date: Date, risk: nu
 export async function deleteRiskMajelis(id: string) {
   await prisma.risk_majelis.delete({ where: { id } });
   return { success: true };
+}
+
+/* ============================
+     RISK ANALYTICS
+============================= */
+
+/**
+ * Get count of high-risk majelis (risk > 20%) from most recent data
+ */
+export async function getHighRiskMajelisCount() {
+  try {
+    // Get the most recent date for each majelis
+    const allMajelis = await prisma.risk_majelis.groupBy({
+      by: ['id_majelis'],
+      _max: {
+        date: true,
+      },
+    });
+
+    // Get the latest risk data for each majelis
+    const latestRisks = await Promise.all(
+      allMajelis.map(async (m: { id_majelis: string; _max: { date: Date | null } }) => {
+        const record = await prisma.risk_majelis.findFirst({
+          where: {
+            id_majelis: m.id_majelis,
+            date: m._max.date!,
+          },
+        });
+        return record;
+      })
+    );
+
+    // Count high-risk majelis (risk > 0.20 = 20%)
+    type MajelisRiskRecord = { id: string; risk: number } | null;
+    const highRiskCount = latestRisks.filter((r: MajelisRiskRecord) => r && r.risk > 0.20).length;
+    const totalCount = latestRisks.length;
+
+    return { success: true, highRiskCount, totalCount };
+  } catch (error) {
+    console.error('Error getting high-risk majelis count:', error);
+    return { success: false, error: 'Failed to get high-risk majelis count', highRiskCount: 0, totalCount: 0 };
+  }
+}
+
+/**
+ * Get count of high-risk borrowers (risk > 20%) from most recent data
+ */
+export async function getHighRiskBorrowersCount() {
+  try {
+    // Get the most recent date for each customer
+    const allCustomers = await prisma.risk_customers.groupBy({
+      by: ['customer_number'],
+      _max: {
+        date: true,
+      },
+    });
+
+    // Get the latest risk data for each customer
+    const latestRisks = await Promise.all(
+      allCustomers.map(async (c: { customer_number: string; _max: { date: Date | null } }) => {
+        const record = await prisma.risk_customers.findFirst({
+          where: {
+            customer_number: c.customer_number,
+            date: c._max.date!,
+          },
+        });
+        return record;
+      })
+    );
+
+    // Count high-risk borrowers (risk > 0.20 = 20%)
+    type CustomerRiskRecord = { id: string; risk: number } | null;
+    const highRiskCount = latestRisks.filter((r: CustomerRiskRecord) => r && r.risk > 0.20).length;
+
+    return { success: true, highRiskCount };
+  } catch (error) {
+    console.error('Error getting high-risk borrowers count:', error);
+    return { success: false, error: 'Failed to get high-risk borrowers count', highRiskCount: 0 };
+  }
+}
+
+/**
+ * Get majelis risk data with members count and trend
+ */
+export async function getMajelisRiskAnalytics() {
+  try {
+    // Get all unique majelis with their latest date
+    const majelisGroups = await prisma.risk_majelis.groupBy({
+      by: ['id_majelis'],
+      _max: {
+        date: true,
+      },
+    });
+
+    const analytics = await Promise.all(
+      majelisGroups.map(async (m: { id_majelis: string; _max: { date: Date | null } }) => {
+        // Get latest risk data
+        const latestData = await prisma.risk_majelis.findFirst({
+          where: {
+            id_majelis: m.id_majelis,
+            date: m._max.date!,
+          },
+        });
+
+        if (!latestData) return null;
+
+        // Get risk data from 1 week ago for trend calculation
+        const oneWeekAgo = new Date(m._max.date!);
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+        const previousData = await prisma.risk_majelis.findFirst({
+          where: {
+            id_majelis: m.id_majelis,
+            date: {
+              lte: oneWeekAgo,
+            },
+          },
+          orderBy: {
+            date: 'desc',
+          },
+        });
+
+        // Calculate trend
+        let trend: 'up' | 'down' | 'stable' = 'stable';
+        if (previousData) {
+          const diff = latestData.risk - previousData.risk;
+          if (Math.abs(diff) >= 0.01) {  // 1% change
+            trend = diff > 0 ? 'up' : 'down';
+          }
+        }
+
+        return {
+          id_majelis: latestData.id_majelis,
+          members: latestData.customer_number.length,
+          riskScore: latestData.risk,
+          trend,
+          date: latestData.date,
+        };
+      })
+    );
+
+    type MajelisAnalytic = { id_majelis: string; members: number; riskScore: number; trend: 'up' | 'down' | 'stable'; date: Date } | null;
+    const validAnalytics = analytics.filter((a: MajelisAnalytic) => a !== null) as Array<NonNullable<MajelisAnalytic>>;
+
+    return { success: true, data: validAnalytics };
+  } catch (error) {
+    console.error('Error getting majelis risk analytics:', error);
+    return { success: false, error: 'Failed to get majelis risk analytics', data: [] };
+  }
+}
+
+/**
+ * Get borrower risk data with business type and trend
+ */
+export async function getBorrowerRiskAnalytics() {
+  try {
+    // Get all unique customers with their latest date
+    const customerGroups = await prisma.risk_customers.groupBy({
+      by: ['customer_number'],
+      _max: {
+        date: true,
+      },
+    });
+
+    const analytics = await Promise.all(
+      customerGroups.map(async (c: { customer_number: string; _max: { date: Date | null } }) => {
+        // Get latest risk data
+        const latestRiskData = await prisma.risk_customers.findFirst({
+          where: {
+            customer_number: c.customer_number,
+            date: c._max.date!,
+          },
+        });
+
+        if (!latestRiskData) return null;
+
+        // Get customer details for business type
+        const customerData = await prisma.customer.findFirst({
+          where: {
+            customer_number: c.customer_number,
+          },
+        });
+
+        // Get risk data from 1 week ago for trend calculation
+        const oneWeekAgo = new Date(c._max.date!);
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+        const previousRiskData = await prisma.risk_customers.findFirst({
+          where: {
+            customer_number: c.customer_number,
+            date: {
+              lte: oneWeekAgo,
+            },
+          },
+          orderBy: {
+            date: 'desc',
+          },
+        });
+
+        // Calculate trend
+        let trend: 'up' | 'down' | 'stable' = 'stable';
+        if (previousRiskData) {
+          const diff = latestRiskData.risk - previousRiskData.risk;
+          if (Math.abs(diff) >= 0.01) {  // 1% change
+            trend = diff > 0 ? 'up' : 'down';
+          }
+        }
+
+        return {
+          customer_number: latestRiskData.customer_number,
+          business: customerData?.purpose || 'Unknown',
+          riskScore: latestRiskData.risk,
+          trend,
+          date: latestRiskData.date,
+        };
+      })
+    );
+
+    type BorrowerAnalytic = { customer_number: string; business: string; riskScore: number; trend: 'up' | 'down' | 'stable'; date: Date } | null;
+    const validAnalytics = analytics.filter((a: BorrowerAnalytic) => a !== null) as Array<NonNullable<BorrowerAnalytic>>;
+
+    return { success: true, data: validAnalytics };
+  } catch (error) {
+    console.error('Error getting borrower risk analytics:', error);
+    return { success: false, error: 'Failed to get borrower risk analytics', data: [] };
+  }
 }
