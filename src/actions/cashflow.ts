@@ -2,7 +2,6 @@
 
 import { prisma } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
-import { Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
 export type CashFlowType = 'EXPENSE' | 'REVENUE';
@@ -41,6 +40,26 @@ function normalizeDate(date: Date) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
   return d;
+}
+
+// Helper to serialize Decimal to number
+function serializeDecimal(obj: any): any {
+  if (Array.isArray(obj)) {
+    return obj.map(serializeDecimal);
+  }
+  if (obj && typeof obj === 'object') {
+    if (Decimal.isDecimal(obj) || (obj instanceof Decimal)) {
+      return obj.toNumber();
+    }
+    const newObj: any = {};
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        newObj[key] = serializeDecimal(obj[key]);
+      }
+    }
+    return newObj;
+  }
+  return obj;
 }
 
 async function syncCashFlowTotal(
@@ -97,7 +116,7 @@ export async function createCashFlow(data: CreateCashFlowInput) {
     await syncCashFlowTotal(data.type, data.customer_number, finalDate, data.amount);
 
     revalidatePath('/dashboard');
-    return { success: true, data: record };
+    return { success: true, data: serializeDecimal(record) };
   } catch {
     return { success: false, error: 'Failed to create cash flow entry' };
   }
@@ -131,7 +150,7 @@ export async function getCashFlows(filters?: {
       skip: filters?.offset || 0,
     });
 
-    return { success: true, data: result };
+    return { success: true, data: serializeDecimal(result) };
   } catch {
     return { success: false, error: 'Failed to fetch cash flows' };
   }
@@ -141,7 +160,7 @@ export async function getCashFlows(filters?: {
 export async function getCashFlowById(id: string) {
   const record = await prisma.cashFlow.findUnique({ where: { id } });
   if (!record) return { success: false, error: 'Cash flow not found' };
-  return { success: true, data: record };
+  return { success: true, data: serializeDecimal(record) };
 }
 
 /* UPDATE cash_flow */
@@ -193,7 +212,7 @@ export async function updateCashFlow(id: string, data: UpdateCashFlowInput) {
     }
 
     revalidatePath('/dashboard');
-    return { success: true, data: updated };
+    return { success: true, data: serializeDecimal(updated) };
   } catch {
     return { success: false, error: 'Failed to update cash flow' };
   }
@@ -271,7 +290,7 @@ export async function getCashFlowTotal(filters?: {
       orderBy: { date: 'desc' },
     });
 
-    return { success: true, data: result };
+    return { success: true, data: serializeDecimal(result) };
   } catch {
     return { success: false, error: 'Failed to fetch totals' };
   }
@@ -285,7 +304,7 @@ export async function getCashFlowTotalByCustomer(customer_number: string) {
       orderBy: { date: 'desc' },
     });
 
-    return { success: true, data: result };
+    return { success: true, data: serializeDecimal(result) };
   } catch {
     return { success: false, error: 'Failed to fetch totals by customer' };
   }
@@ -296,7 +315,7 @@ export async function getCashFlowTotalById(id: string) {
   try {
     const record = await prisma.cashFlowTotal.findUnique({ where: { id } });
     if (!record) return { success: false, error: 'Total not found' };
-    return { success: true, data: record };
+    return { success: true, data: serializeDecimal(record) };
   } catch {
     return { success: false, error: 'Failed to fetch total by id' };
   }
@@ -316,7 +335,7 @@ export async function updateCashFlowTotal(id: string, data: UpdateCashFlowTotalI
     });
 
     revalidatePath('/dashboard');
-    return { success: true, data: updated };
+    return { success: true, data: serializeDecimal(updated) };
   } catch {
     return { success: false, error: 'Failed to update total' };
   }
@@ -349,7 +368,7 @@ export async function createCashFlowTotal(data: CreateCashFlowTotalInput) {
     });
 
     revalidatePath('/dashboard');
-    return { success: true, data: record };
+    return { success: true, data: serializeDecimal(record) };
   } catch (err) {
     console.error("CREATE TOTAL ERROR:", err);
     return { success: false, error: 'Failed to create cash flow total' };

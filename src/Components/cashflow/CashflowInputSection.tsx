@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import InputMethodTabs from "./InputMethodTabs";
 import ManualSection from "./ManualSection";
 import PhotoSection from "./PhotoSection";
 import VoiceSection from "./VoiceSection";
 import ValidationModal from "./ValidationModal";
+import { getCashFlows, getCashFlowTotal } from "@/actions/cashflow";
 
 interface Transaction {
     id: string;
@@ -14,7 +15,12 @@ interface Transaction {
     description: string;
 }
 
-export default function CashflowInputSection() {
+interface CashflowInputSectionProps {
+    date?: Date;
+    readOnly?: boolean;
+}
+
+export default function CashflowInputSection({ date = new Date(), readOnly = false }: CashflowInputSectionProps) {
     const [revenue, setRevenue] = useState<string>("0");
     const [expense, setExpense] = useState<string>("0");
     const [inputType, setInputType] = useState<string>("total");
@@ -30,20 +36,94 @@ export default function CashflowInputSection() {
 
     const netIncome = Number(revenue) - Number(expense);
 
+    // Fetch data when date changes
+    useEffect(() => {
+        const fetchData = async () => {
+            setIsLoading(true);
+            // Reset input method to manual to ensure we don't get stuck in hidden views
+            setInputMethod("manual");
+
+            try {
+                // Calculate start and end of the selected date
+                const startOfDay = new Date(date);
+                startOfDay.setHours(0, 0, 0, 0);
+
+                const endOfDay = new Date(date);
+                endOfDay.setHours(23, 59, 59, 999);
+
+                // Fetch totals
+                const totalRes = await getCashFlowTotal({
+                    startDate: startOfDay,
+                    endDate: endOfDay,
+                    customer_number: "DUMMY-123"
+                });
+
+                if (totalRes.success && totalRes.data) {
+                    let rev = 0;
+                    let exp = 0;
+                    totalRes.data.forEach((item: any) => {
+                        const amount = parseFloat(item.amount.toString());
+                        if (item.type === "REVENUE") rev += amount;
+                        if (item.type === "EXPENSE") exp += amount;
+                    });
+                    setRevenue(rev.toString());
+                    setExpense(exp.toString());
+                } else {
+                    setRevenue("0");
+                    setExpense("0");
+                }
+
+                // Fetch transactions list
+                const listRes = await getCashFlows({
+                    startDate: startOfDay,
+                    endDate: endOfDay,
+                    customer_number: "DUMMY-123"
+                });
+
+                if (listRes.success && listRes.data) {
+                    const mapped = listRes.data.map((item: any) => ({
+                        id: item.id,
+                        type: item.type === "REVENUE" ? "Pemasukan (Credit)" : "Pengeluaran (Debit)",
+                        amount: parseFloat(item.amount.toString()),
+                        description: item.description
+                    }));
+                    setTransactions(mapped);
+
+                    // If we have transactions, default to perTransaction view
+                    if (mapped.length > 0) {
+                        setInputType("perTransaksi");
+                    } else {
+                        setInputType("total");
+                    }
+                } else {
+                    setTransactions([]);
+                }
+
+            } catch (err) {
+                console.error("Error fetching daily data:", err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [date]);
+
     async function handleSave() {
+        if (readOnly) return;
         setIsLoading(true);
         try {
+            // ... (Existing save logic - needs update to include date)
+            // Ideally we should pass the date to the API or actions.
+            // The current API implementation uses new Date(). We might need to update API to accept date.
+            // For now, let's assume we are only saving for TODAY as per requirements (readOnly for past).
+            // But wait, the requirement says "jika hari ini maka warna ungu", implying we can only edit today?
+            // "pengguna masihi bisa melihat bagian ringkasa ... tapi sudah tidak bsia menginput atau mengahapus data lagi"
+            // So yes, editing is only for today. So new Date() in API is fine for now.
+
             let payload: any = {};
 
             if (inputMethod === "manual" && inputType === "total") {
-                // Manual Total Mode - We need to send two requests if both exist, or handle in backend
-                // For simplicity, let's just send one if only one exists, or handle logic here.
-                // Actually, the backend supports "total" mode which takes one total object.
-                // We might need to send two requests here or update backend to accept array of totals.
-                // Let's just use the list mode for manual transactions if we have them, 
-                // but for manual total, we might need to call API twice or adjust.
-
-                // Strategy: Call API for Revenue if > 0, then Expense if > 0
                 if (Number(revenue) > 0) {
                     await fetch("/api/cashflow", {
                         method: "POST",
@@ -63,8 +143,6 @@ export default function CashflowInputSection() {
                     });
                 }
             } else {
-                // List Mode (Manual Transaction List OR AI Result List)
-                // Convert UI transactions to API format
                 const items = transactions.map(t => ({
                     tipe: t.type.toLowerCase().includes("pemasukan") ? "revenue" : "expense",
                     desc: t.description,
@@ -83,12 +161,12 @@ export default function CashflowInputSection() {
             }
 
             alert("Cashflow berhasil disimpan!");
-            // Reset state
-            setRevenue("0");
-            setExpense("0");
-            setTransactions([]);
-            setPhotoUploaded(false);
-            setVoiceInputted(false);
+            // Refresh data? Or just let state update?
+            // Ideally re-fetch or update local state.
+            // For simplicity, let's trigger a re-fetch via window reload or callback?
+            // Since we are using server actions and revalidatePath, a router refresh might be better.
+            window.location.reload();
+
         } catch (error) {
             console.error("Error saving cashflow:", error);
             alert("Gagal menyimpan cashflow.");
@@ -98,10 +176,12 @@ export default function CashflowInputSection() {
     }
 
     function handleDeleteTransaction(id: string) {
+        if (readOnly) return;
         setTransactions(transactions.filter((t) => t.id !== id));
     }
 
     function handleAddTransaction() {
+        if (readOnly) return;
         const newId = String(transactions.length + 1);
         setTransactions([
             ...transactions,
@@ -117,6 +197,7 @@ export default function CashflowInputSection() {
     // --- AI Analysis Handlers ---
 
     async function handleAnalyzeImage(file: File) {
+        if (readOnly) return;
         setIsLoading(true);
         try {
             const reader = new FileReader();
@@ -132,7 +213,7 @@ export default function CashflowInputSection() {
                 if (data.result) {
                     setPendingData(data.result);
                     setIsModalOpen(true);
-                    setPhotoUploaded(true); // Show success state in UI
+                    setPhotoUploaded(true);
                 } else {
                     alert("Gagal menganalisis gambar.");
                 }
@@ -145,42 +226,8 @@ export default function CashflowInputSection() {
         }
     }
 
-    async function handleAnalyzeVoice(blob: Blob) {
-        setIsLoading(true);
-        try {
-            const formData = new FormData();
-            formData.append("file", blob, "recording.wav");
-            // Defaulting to 'revenue' for now, ideally UI allows selection before recording or AI infers
-            // But the API requires category. Let's assume 'revenue' or add UI for it.
-            // For this demo, let's default to 'revenue' but maybe we can make it dynamic?
-            // The VoiceSection UI has separate buttons for Income/Expense! 
-            // We need to pass that info up.
-            // For now let's assume 'revenue' and fix in VoiceSection integration.
-            formData.append("category", "revenue");
-
-            const response = await fetch("/api/analyze-voice", {
-                method: "POST",
-                body: formData,
-            });
-            const data = await response.json();
-
-            if (data.analysis) {
-                setPendingData(data.analysis);
-                setIsModalOpen(true);
-                setVoiceInputted(true);
-            } else {
-                alert("Gagal menganalisis suara.");
-            }
-        } catch (error) {
-            console.error("Error analyzing voice:", error);
-            alert("Terjadi kesalahan saat memproses suara.");
-        } finally {
-            setIsLoading(false);
-        }
-    }
-
-    // Special handler for voice that takes category
     async function handleAnalyzeVoiceWithCategory(blob: Blob, category: "revenue" | "expense") {
+        if (readOnly) return;
         setIsLoading(true);
         try {
             const formData = new FormData();
@@ -210,7 +257,6 @@ export default function CashflowInputSection() {
 
 
     function handleConfirmValidation(data: any) {
-        // Merge validated data into transactions list
         const newTransactions: Transaction[] = [];
 
         if (data.mode === "list" && data.items) {
@@ -232,13 +278,12 @@ export default function CashflowInputSection() {
         }
 
         setTransactions([...transactions, ...newTransactions]);
-
-        // Switch to manual per-transaction view to show results
         setInputMethod("manual");
         setInputType("perTransaksi");
     }
 
     function handleUpdateTransaction(id: string, field: keyof Transaction, value: any) {
+        if (readOnly) return;
         setTransactions(transactions.map(t =>
             t.id === id ? { ...t, [field]: value } : t
         ));
@@ -257,32 +302,40 @@ export default function CashflowInputSection() {
     const perTransactionIncome = Math.max(totalIncome, Number(revenue));
     const perTransactionNetIncome = perTransactionIncome - totalExpenseCalc;
 
+    const formattedDate = date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' });
+
     return (
         <div className="bg-white rounded-2xl shadow-lg p-5 relative">
             {isLoading && (
                 <div className="absolute inset-0 bg-white/80 z-10 flex items-center justify-center rounded-2xl">
-                    <div className="text-[#8E44AD] font-medium animate-pulse">Memproses...</div>
+                    <div className="text-[#8E44AD] font-medium animate-pulse">Memuat Data...</div>
                 </div>
             )}
 
             <div className="flex items-center justify-between mb-4">
                 <div>
-                    <h3 className="text-lg font-semibold text-[#8E44AD]">Jumat, 21 November</h3>
-                    <p className="text-sm text-gray-500">Edit cashflow Anda</p>
+                    <h3 className="text-lg font-semibold text-[#8E44AD]">{formattedDate}</h3>
+                    <p className="text-sm text-gray-500">{readOnly ? "Ringkasan Transaksi" : "Edit cashflow Anda"}</p>
                 </div>
-                <button className="text-slate-700 text-sm">Cancel</button>
+                {!readOnly && <button className="text-slate-700 text-sm">Cancel</button>}
             </div>
 
-            <InputMethodTabs inputMethod={inputMethod} setInputMethod={setInputMethod} />
+            {!readOnly && (
+                <InputMethodTabs inputMethod={inputMethod} setInputMethod={setInputMethod} />
+            )}
 
             {inputMethod === "manual" ? (
                 <ManualSection
                     inputType={inputType}
-                    setInputType={setInputType}
+                    setInputType={readOnly ? () => { } : setInputType} // Disable switching if readOnly? Or allow view switch?
+                    // Actually allowing view switch is fine for readOnly to see details.
+                    // But editing inside ManualSection needs to be disabled.
+                    // We need to pass readOnly to ManualSection or handle it there.
+                    // For now, let's just pass data and handle interactions.
                     revenue={revenue}
-                    setRevenue={setRevenue}
+                    setRevenue={readOnly ? () => { } : setRevenue}
                     expense={expense}
-                    setExpense={setExpense}
+                    setExpense={readOnly ? () => { } : setExpense}
                     netIncome={netIncome}
                     transactions={transactions}
                     handleAddTransaction={handleAddTransaction}
@@ -291,6 +344,7 @@ export default function CashflowInputSection() {
                     perTransactionIncome={perTransactionIncome}
                     totalExpense={totalExpenseCalc}
                     perTransactionNetIncome={perTransactionNetIncome}
+                    readOnly={readOnly}
                 />
             ) : inputMethod === "foto" ? (
                 <PhotoSection
@@ -306,9 +360,11 @@ export default function CashflowInputSection() {
                 />
             )}
 
-            <button onClick={handleSave} className="w-full bg-[#8E44AD] text-white py-3 rounded-2xl font-medium mt-4">
-                Simpan Cashflow
-            </button>
+            {!readOnly && (
+                <button onClick={handleSave} className="w-full bg-[#8E44AD] text-white py-3 rounded-2xl font-medium mt-4">
+                    Simpan Cashflow
+                </button>
+            )}
 
             <ValidationModal
                 isOpen={isModalOpen}

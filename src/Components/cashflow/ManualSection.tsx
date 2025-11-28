@@ -23,6 +23,7 @@ interface ManualSectionProps {
     perTransactionIncome: number;
     totalExpense: number;
     perTransactionNetIncome: number;
+    readOnly?: boolean;
 }
 
 export default function ManualSection({
@@ -40,34 +41,37 @@ export default function ManualSection({
     perTransactionIncome,
     totalExpense,
     perTransactionNetIncome,
+    readOnly = false,
 }: ManualSectionProps) {
     return (
         <>
-            <div className="mb-5">
-                <label className="text-sm font-medium text-slate-700 block mb-3">Tipe Input Manual</label>
-                <div className="flex gap-3">
-                    <button
-                        onClick={() => setInputType("total")}
-                        className={`flex-1 py-3 rounded-2xl border-2 transition flex flex-col items-center gap-1 ${inputType === "total"
-                            ? 'bg-[#8E44AD]/10 border-[#8E44AD] text-[#8E44AD]'
-                            : 'border-gray-300 text-gray-600'
-                            }`}
-                    >
-                        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z" /></svg>
-                        <span className="text-xs font-medium">Total Hari Ini</span>
-                    </button>
-                    <button
-                        onClick={() => setInputType("perTransaksi")}
-                        className={`flex-1 py-3 rounded-2xl border-2 transition flex flex-col items-center gap-1 ${inputType === "perTransaksi"
-                            ? 'bg-[#8E44AD]/10 border-[#8E44AD] text-[#8E44AD]'
-                            : 'border-gray-300 text-gray-600'
-                            }`}
-                    >
-                        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5-7l-3 3.72L9 13l-3 4h12L14 10z" /></svg>
-                        <span className="text-xs font-medium">Per Transaksi</span>
-                    </button>
+            {!readOnly && (
+                <div className="mb-5">
+                    <label className="text-sm font-medium text-slate-700 block mb-3">Tipe Input Manual</label>
+                    <div className="flex gap-3">
+                        <button
+                            onClick={() => setInputType("total")}
+                            className={`flex-1 py-3 rounded-2xl border-2 transition flex flex-col items-center gap-1 ${inputType === "total"
+                                ? 'bg-[#8E44AD]/10 border-[#8E44AD] text-[#8E44AD]'
+                                : 'border-gray-300 text-gray-600'
+                                }`}
+                        >
+                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z" /></svg>
+                            <span className="text-xs font-medium">Total Hari Ini</span>
+                        </button>
+                        <button
+                            onClick={() => setInputType("perTransaksi")}
+                            className={`flex-1 py-3 rounded-2xl border-2 transition flex flex-col items-center gap-1 ${inputType === "perTransaksi"
+                                ? 'bg-[#8E44AD]/10 border-[#8E44AD] text-[#8E44AD]'
+                                : 'border-gray-300 text-gray-600'
+                                }`}
+                        >
+                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5-7l-3 3.72L9 13l-3 4h12L14 10z" /></svg>
+                            <span className="text-xs font-medium">Per Transaksi</span>
+                        </button>
+                    </div>
                 </div>
-            </div>
+            )}
 
             {inputType === "total" ? (
                 <>
@@ -77,8 +81,9 @@ export default function ManualSection({
                             <input
                                 type="text"
                                 value={revenue}
-                                onChange={(e) => setRevenue(e.target.value.replace(/[^0-9]/g, ''))}
-                                className="w-full p-3 rounded-md bg-gray-100 border border-gray-300 text-slate-700"
+                                onChange={(e) => !readOnly && setRevenue(e.target.value.replace(/[^0-9]/g, ''))}
+                                disabled={readOnly}
+                                className={`w-full p-3 rounded-md bg-gray-100 border border-gray-300 text-slate-700 ${readOnly ? 'opacity-70 cursor-not-allowed' : ''}`}
                             />
                         </div>
 
@@ -87,8 +92,9 @@ export default function ManualSection({
                             <input
                                 type="text"
                                 value={expense}
-                                onChange={(e) => setExpense(e.target.value.replace(/[^0-9]/g, ''))}
-                                className="w-full p-3 rounded-md bg-gray-100 border border-gray-300 text-slate-700"
+                                onChange={(e) => !readOnly && setExpense(e.target.value.replace(/[^0-9]/g, ''))}
+                                disabled={readOnly}
+                                className={`w-full p-3 rounded-md bg-gray-100 border border-gray-300 text-slate-700 ${readOnly ? 'opacity-70 cursor-not-allowed' : ''}`}
                             />
                         </div>
                     </div>
@@ -103,13 +109,15 @@ export default function ManualSection({
                 <>
                     <div className="flex items-center justify-between mb-4">
                         <h4 className="text-sm font-medium text-slate-700">Detail Transaksi</h4>
-                        <button
-                            onClick={handleAddTransaction}
-                            className="px-3 py-1 rounded-md bg-gray-100 text-slate-700 text-sm flex items-center gap-1 hover:bg-gray-200"
-                        >
-                            <IconPlus />
-                            Tambah Transaksi
-                        </button>
+                        {!readOnly && (
+                            <button
+                                onClick={handleAddTransaction}
+                                className="px-3 py-1 rounded-md bg-gray-100 text-slate-700 text-sm flex items-center gap-1 hover:bg-gray-200"
+                            >
+                                <IconPlus />
+                                Tambah Transaksi
+                            </button>
+                        )}
                     </div>
 
                     <div className="space-y-3 mb-4 max-h-96 overflow-y-auto">
@@ -120,23 +128,23 @@ export default function ManualSection({
                                         <label className="text-xs text-gray-600 font-medium block mb-1">Tipe</label>
                                         <select
                                             value={tx.type}
-                                            onChange={(e) => handleUpdateTransaction(tx.id, "type", e.target.value)}
-                                            className="w-full p-2 rounded-md bg-gray-100 border border-gray-300 text-sm text-slate-700"
+                                            onChange={(e) => !readOnly && handleUpdateTransaction(tx.id, "type", e.target.value)}
+                                            disabled={readOnly}
+                                            className={`w-full p-2 rounded-md bg-gray-100 border border-gray-300 text-sm text-slate-700 ${readOnly ? 'opacity-70 cursor-not-allowed' : ''}`}
                                         >
                                             <option>Pemasukan (Credit)</option>
                                             <option>Pengeluaran (Debit)</option>
                                         </select>
                                     </div>
 
-
-
                                     <div>
                                         <label className="text-xs text-gray-600 font-medium block mb-1">Jumlah (Rp)</label>
                                         <input
                                             type="number"
                                             value={tx.amount}
-                                            onChange={(e) => handleUpdateTransaction(tx.id, "amount", Number(e.target.value))}
-                                            className="w-full p-2 rounded-md bg-gray-100 border border-gray-300 text-sm text-slate-700"
+                                            onChange={(e) => !readOnly && handleUpdateTransaction(tx.id, "amount", Number(e.target.value))}
+                                            disabled={readOnly}
+                                            className={`w-full p-2 rounded-md bg-gray-100 border border-gray-300 text-sm text-slate-700 ${readOnly ? 'opacity-70 cursor-not-allowed' : ''}`}
                                         />
                                     </div>
 
@@ -145,19 +153,22 @@ export default function ManualSection({
                                         <input
                                             type="text"
                                             value={tx.description}
-                                            onChange={(e) => handleUpdateTransaction(tx.id, "description", e.target.value)}
-                                            className="w-full p-2 rounded-md bg-gray-100 border border-gray-300 text-sm text-slate-700"
+                                            onChange={(e) => !readOnly && handleUpdateTransaction(tx.id, "description", e.target.value)}
+                                            disabled={readOnly}
+                                            className={`w-full p-2 rounded-md bg-gray-100 border border-gray-300 text-sm text-slate-700 ${readOnly ? 'opacity-70 cursor-not-allowed' : ''}`}
                                         />
                                     </div>
                                 </div>
 
-                                <button
-                                    onClick={() => handleDeleteTransaction(tx.id)}
-                                    className="text-red-500 text-sm font-medium flex items-center gap-1"
-                                >
-                                    <IconDelete />
-                                    Hapus
-                                </button>
+                                {!readOnly && (
+                                    <button
+                                        onClick={() => handleDeleteTransaction(tx.id)}
+                                        className="text-red-500 text-sm font-medium flex items-center gap-1"
+                                    >
+                                        <IconDelete />
+                                        Hapus
+                                    </button>
+                                )}
                             </div>
                         ))}
                     </div>
