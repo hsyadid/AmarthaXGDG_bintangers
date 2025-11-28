@@ -66,9 +66,9 @@ export default function BorrowerPage() {
             highRiskCount={data?.majelis?.highRiskCount}
             trend={data?.majelis?.trend}
           />
-          <MembersRiskList
+          {/* <MembersRiskList
             members={data?.members}
-          />
+          /> */}
         </div>
       </div>
 

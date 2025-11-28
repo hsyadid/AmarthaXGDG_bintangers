@@ -1,6 +1,81 @@
 "use client";
 
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import MembersRiskList from '@/Components/majelis/MembersRiskList';
+
+interface MemberRisk {
+  name: string;
+  risk: number;
+  riskChange: number;
+}
+
+interface MajelisData {
+  majelis: {
+    name: string;
+    id: string;
+    averageRisk: string;
+    trend: string;
+  };
+  userPosition: {
+    rank: number;
+    total: number;
+    riskScore: string;
+  };
+  performance: {
+    low: number;
+    moderate: number;
+    high: number;
+  };
+  members: MemberRisk[];
+}
+
 export default function MajelisDetailPage() {
+  const [data, setData] = useState<MajelisData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const res = await fetch('/api/majelis');
+        const json = await res.json();
+        if (json.majelis) {
+          setData(json);
+        }
+      } catch (error) {
+        console.error("Failed to fetch majelis data", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return <div className="min-h-screen bg-gray-50 flex items-center justify-center">Loading...</div>;
+  }
+
+  if (!data) {
+    return <div className="min-h-screen bg-gray-50 flex items-center justify-center">Failed to load data</div>;
+  }
+
+  // Helper for Pie Chart Color
+  const getRiskColor = (score: number) => {
+    if (score < 10) return '#22c55e'; // Green
+    if (score < 20) return '#eab308'; // Yellow
+    return '#ef4444'; // Red
+  };
+
+  const avgRisk = parseFloat(data.majelis.averageRisk);
+  const strokeColor = getRiskColor(avgRisk);
+
+  // Pie Chart Config
+  const circleSize = 60;
+  const strokeWidth = 6;
+  const radius = (circleSize - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (Math.min(avgRisk, 100) / 100) * circumference;
+
   return (
     <div className="w-full min-h-screen bg-gray-50 pb-24">
       {/* Header */}
@@ -8,17 +83,17 @@ export default function MajelisDetailPage() {
 
       {/* Back button and title */}
       <div className="relative -mt-48 px-6">
-        <div className="w-24 h-9 rounded-md bg-transparent text-white relative">
+        <Link href="/borrower" className="w-24 h-9 rounded-md bg-transparent text-white relative block">
           <div className="w-4 h-4 left-3 top-2 absolute overflow-hidden">
             <div className="w-1 h-2.5 left-[3.33px] top-[3.33px] absolute outline outline-[1.33px] outline-offset-[-0.67px] outline-white" />
             <div className="w-2.5 h-0 left-[3.33px] top-[8px] absolute outline outline-[1.33px] outline-offset-[-0.67px] outline-white" />
           </div>
           <div className="absolute left-11 top-2 text-white text-sm font-medium">Back</div>
-        </div>
+        </Link>
 
         <div className="mt-4">
-          <h1 className="text-3xl font-bold text-white">Majelis Sejahtera</h1>
-          <div className="text-base text-white/90">MJS-001 • Majelis Kamu</div>
+          <h1 className="text-3xl font-bold text-white">{data.majelis.name}</h1>
+          <div className="text-base text-white/90">{data.majelis.id} • Majelis Kamu</div>
         </div>
       </div>
 
@@ -26,44 +101,57 @@ export default function MajelisDetailPage() {
       <div className="px-6 mt-6 space-y-6">
         {/* Top stats */}
         <div className="space-y-4">
-          <div className="bg-white rounded-2xl shadow-lg p-6">
-            <div className="flex items-center gap-3">
-              <div className="w-5 h-5 relative">
-                <div className="w-3 h-[5px] left-[1.67px] top-[12.50px] absolute outline outline-[1.67px] outline-offset-[-0.83px] outline-cyan-600" />
-                <div className="w-[2.50px] h-1.5 left-[13.33px] top-[2.61px] absolute outline outline-[1.67px] outline-offset-[-0.83px] outline-cyan-600" />
-                <div className="w-[2.50px] h-[4.89px] left-[15.83px] top-[12.61px] absolute outline outline-[1.67px] outline-offset-[-0.83px] outline-cyan-600" />
-                <div className="w-1.5 h-1.5 left-[4.17px] top-[2.50px] absolute outline outline-[1.67px] outline-offset-[-0.83px] outline-cyan-600" />
-              </div>
-              <div>
-                <div className="text-gray-600 text-lg font-semibold">Total Anggota</div>
-                <div className="text-slate-700 text-base">15 Members</div>
-              </div>
-            </div>
-          </div>
 
+          {/* Rata-rata Persentase Majelis (Pie Chart) */}
           <div className="bg-white rounded-2xl shadow-lg p-6">
-            <div className="flex items-center gap-3">
-              <div className="w-5 h-5 relative">
-                <div className="w-[5px] h-[5px] left-[13.33px] top-[5.83px] absolute outline outline-[1.67px] outline-offset-[-0.83px] outline-cyan-600" />
-                <div className="w-4 h-2 left-[1.67px] top-[5.83px] absolute outline outline-[1.67px] outline-offset-[-0.83px] outline-cyan-600" />
+            <div className="flex items-center gap-4">
+              <div className="relative" style={{ width: circleSize, height: circleSize }}>
+                <svg width={circleSize} height={circleSize} className="transform -rotate-90 origin-center">
+                  <circle
+                    stroke="#e5e7eb"
+                    fill="transparent"
+                    strokeWidth={strokeWidth}
+                    r={radius}
+                    cx={circleSize / 2}
+                    cy={circleSize / 2}
+                  />
+                  <circle
+                    stroke={strokeColor}
+                    fill="transparent"
+                    strokeWidth={strokeWidth}
+                    strokeDasharray={circumference}
+                    strokeDashoffset={strokeDashoffset}
+                    strokeLinecap="round"
+                    r={radius}
+                    cx={circleSize / 2}
+                    cy={circleSize / 2}
+                    className="transition-all duration-1000 ease-out"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-xs font-bold text-gray-700">{avgRisk.toFixed(0)}%</span>
+                </div>
               </div>
               <div>
                 <div className="text-gray-600 text-lg font-semibold">Rata-rata Persentase Majelis</div>
-                <div className="text-yellow-600 text-base">13.7%</div>
-                <div className="text-green-600 text-sm">↓ Membaik</div>
+                <div className="text-slate-700 text-base font-bold" style={{ color: strokeColor }}>{data.majelis.averageRisk}%</div>
+                {/* Removed "Membaik/Memburuk" as requested */}
               </div>
             </div>
           </div>
 
+          {/* Posisimu */}
           <div className="bg-white rounded-2xl shadow-lg p-6">
             <div className="flex items-center gap-3">
-              <div className="w-5 h-5 bg-[#8E44AD]/10 rounded flex justify-center items-center">
-                <div className="text-[#8E44AD] text-xs">%</div>
+              <div className="w-10 h-10 bg-[#8E44AD]/10 rounded-full flex justify-center items-center">
+                <span className="text-[#8E44AD] font-bold">#</span>
               </div>
               <div>
                 <div className="text-gray-600 text-lg font-semibold">Posisimu</div>
-                <div className="text-slate-700 text-base">#3 of 15</div>
-                <div className="text-gray-500 text-sm">By health score</div>
+                <div className="text-slate-700 text-base">
+                  <span className="font-bold text-[#8E44AD]">#{data.userPosition.rank}</span> of {data.userPosition.total}
+                </div>
+                <div className="text-gray-500 text-sm">Diurutkan berdasarkan risiko terendah</div>
               </div>
             </div>
           </div>
@@ -75,53 +163,22 @@ export default function MajelisDetailPage() {
           <div className="space-y-3">
             <div className="bg-green-50 rounded-2xl px-3 py-3 flex justify-between">
               <div className="text-gray-700">Low Risk (&lt;10%)</div>
-              <div className="text-green-600">8 members</div>
+              <div className="text-green-600 font-bold">{data.performance.low} members</div>
             </div>
             <div className="bg-yellow-50 rounded-2xl px-3 py-3 flex justify-between">
               <div className="text-gray-700">Moderate (10-20%)</div>
-              <div className="text-yellow-600">5 members</div>
+              <div className="text-yellow-600 font-bold">{data.performance.moderate} members</div>
             </div>
             <div className="bg-red-50 rounded-2xl px-3 py-3 flex justify-between">
               <div className="text-gray-700">High Risk (&gt;20%)</div>
-              <div className="text-red-600">2 member</div>
+              <div className="text-red-600 font-bold">{data.performance.high} member</div>
             </div>
           </div>
         </div>
 
-        {/* Members list table */}
-        <div className="bg-white rounded-2xl shadow p-6">
-          <h3 className="text-xl font-semibold text-[#8E44AD] mb-3">Persentase Anggota Majelis</h3>
-          <p className="text-sm text-gray-600 mb-4">Detail cashflow anggota bersifat privat. Anda melihat persentase risiko dan trend.</p>
+        {/* Members list table - Replaced with Component */}
+        <MembersRiskList members={data.members} />
 
-          <div className="space-y-3">
-            {/* Member row example */}
-            <div className="flex justify-between items-center border-b border-gray-200 pb-3">
-              <div>
-                <div className="text-slate-700">Siti Rahayu</div>
-                <div className="text-gray-500 text-sm">Member</div>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="bg-green-50 rounded-full px-3 py-1 text-green-600 text-sm">7.2%</div>
-                <div className="text-green-500 text-xs">-1.3%</div>
-                <div className="bg-green-100 rounded-md px-2 py-1 text-green-700 text-xs">Low Risk</div>
-              </div>
-            </div>
-
-            <div className="flex justify-between items-center border-b border-gray-200 pb-3">
-              <div>
-                <div className="text-slate-700">Ani Susanti</div>
-                <div className="text-gray-500 text-sm">Toko Sayur</div>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="bg-red-50 rounded-full px-3 py-1 text-red-600 text-sm">28.3%</div>
-                <div className="text-red-500 text-xs">+3.2%</div>
-                <div className="bg-red-600/60 rounded-md px-2 py-1 text-white text-xs">High Risk</div>
-              </div>
-            </div>
-
-            {/* More rows can be added similarly */}
-          </div>
-        </div>
       </div>
     </div>
   );

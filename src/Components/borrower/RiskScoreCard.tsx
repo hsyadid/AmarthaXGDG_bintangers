@@ -29,8 +29,8 @@ export default function RiskScoreCard({
     // const changeText = isImprovement ? `↓ ${Math.abs(riskChange)}%` : `↑ ${Math.abs(riskChange)}%`; // Tidak dipakai di desain baru
     const changeColor = isImprovement ? "text-green-600" : "text-red-600";
     // Menambahkan tanda + atau - secara eksplisit
-    const sign = riskChange > 0 ? "+" : "";
-    const changeMessage = `${sign}${riskChange} dari minggu lalu`;
+    const sign = riskChange > 0 ? "+ " : "";
+    const changeMessage = `${sign}${riskChange} % dari minggu lalu`;
 
     const riskColorBg = getRiskScoreBgColor(riskScore);
     const riskColorText = getRiskScoreTextColor(riskScore);
