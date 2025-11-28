@@ -5,7 +5,7 @@ export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
         const { mode, items, total } = body;
-        const CUSTOMER_NUMBER = "DUMMY-123";
+        const CUSTOMER_NUMBER = "79763ff37301e2867e58e0becbd4fa84b2ec902f19bbec2154c0e750c8ac5356";
 
         if (!mode || (mode !== "list" && mode !== "total")) {
             return NextResponse.json(
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
             for (const item of items) {
                 // Map lowercase tipe to uppercase CashFlowType
                 const type: CashFlowType = item.tipe === "revenue" ? "REVENUE" : "EXPENSE";
-                
+
                 const result = await createCashFlow({
                     type,
                     amount: item.amount,

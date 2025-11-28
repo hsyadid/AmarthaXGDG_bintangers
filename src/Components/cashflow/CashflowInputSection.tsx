@@ -55,7 +55,7 @@ export default function CashflowInputSection({ date = new Date(), readOnly = fal
                 const totalRes = await getCashFlowTotal({
                     startDate: startOfDay,
                     endDate: endOfDay,
-                    customer_number: "DUMMY-123"
+                    customer_number: "79763ff37301e2867e58e0becbd4fa84b2ec902f19bbec2154c0e750c8ac5356"
                 });
 
                 if (totalRes.success && totalRes.data) {
@@ -77,7 +77,7 @@ export default function CashflowInputSection({ date = new Date(), readOnly = fal
                 const listRes = await getCashFlows({
                     startDate: startOfDay,
                     endDate: endOfDay,
-                    customer_number: "DUMMY-123"
+                    customer_number: "79763ff37301e2867e58e0becbd4fa84b2ec902f19bbec2154c0e750c8ac5356"
                 });
 
                 if (listRes.success && listRes.data) {
