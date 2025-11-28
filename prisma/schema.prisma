@@ -1,0 +1,165 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Cash Flow Models
+model CashFlow {
+  id              String   @id @default(uuid())
+  type            String   // EXPENSE | REVENUE
+  amount          Decimal  @db.Decimal(18, 2)
+  description     String
+  customer_number String
+  date            DateTime @default(now())
+
+  @@index([customer_number])
+  @@index([date])
+  @@index([type])
+  @@map("cash_flows")
+}
+
+model CashFlowTotal {
+  id              String   @id @default(uuid())
+  type            String
+  amount          Decimal  @db.Decimal(18, 2)
+  customer_number String
+  date            DateTime @default(now())
+
+  @@index([customer_number])
+  @@index([date])
+  @@map("cash_flow_totals")
+}
+
+// Prediction Model
+model Prediction {
+  id              String   @id @default(uuid())
+  customer_number String
+  prediction      Float
+  date            DateTime @default(now())
+
+  @@index([customer_number])
+  @@index([date])
+  @@map("predictions")
+}
+
+// Prediction Majelis Model
+model PredictionMajelis {
+  id              String   @id @default(uuid())
+  id_majelis      String
+  id_user         String[]
+  prediction      Float
+  date            DateTime @default(now())
+
+  @@index([id_majelis])
+  @@index([date])
+  @@map("prediction_majelis")
+}
+
+// Bills Model - Scheduled billing records for loan repayment tracking
+model Bill {
+  id                    String    @id @default(uuid())
+  loan_id               String    // Links to loan_snapshots
+  bill_id               String    @unique // Unique identifier for specific bill
+  bill_scheduled_date   DateTime  // Scheduled due date
+  bill_paid_date        DateTime? // Actual payment date (null = unpaid)
+  amount                Decimal   @db.Decimal(18, 2) // Scheduled amount due
+  paid_amount           Decimal   @db.Decimal(18, 2) // Amount actually paid
+  created_at            DateTime  @default(now())
+
+  @@index([loan_id])
+  @@index([bill_scheduled_date])
+  @@index([bill_paid_date])
+  @@map("bills")
+}
+
+// Hackathon Data Models
+// Customer Model - Core demographic and profile information
+model Customer {
+  id              String             @id @default(uuid())
+  customer_number String             @unique // Hashed unique identifier
+  date_of_birth   DateTime?          // Birth date for age calculation
+  marital_status  String?            // e.g., MARRIED, WIDOWED
+  religion        String?            // Coded value (numeric as string)
+  purpose         String?            // Economic activity / loan purpose
+  preference      String?            @db.Text // User preferences (empty by default)
+  created_at      DateTime           @default(now())
+  
+  // Relations
+  task_participants TaskParticipant[]
+  loan_snapshots  LoanSnapshot[]
+
+  @@index([customer_number])
+  @@map("customers")
+}
+
+// Task Model - Operational field activities (repayment collection, surveys, etc.)
+model Task {
+  id                String             @id @default(uuid())
+  task_id           String             @unique // Hashed unique identifier
+  task_type         String             // e.g., REPAYMENT, SURVEY, VERIFICATION
+  task_status       String             // e.g., COMPLETED, PENDING, CANCELLED
+  start_datetime    DateTime           // Scheduled start time
+  end_datetime      DateTime           // Scheduled end time
+  actual_datetime   DateTime?          // Actual completion time (for SLA tracking)
+  latitude          Decimal?           @db.Decimal(18, 15) // Geolocation latitude
+  longitude         Decimal?           @db.Decimal(18, 15) // Geolocation longitude
+  branch_id         String             // Hashed branch identifier
+  created_at        DateTime           @default(now())
+  
+  // Relations
+  participants      TaskParticipant[]
+
+  @@index([task_status])
+  @@index([task_id])
+  @@index([branch_id])
+  @@index([task_type])
+  @@map("tasks")
+}
+
+// TaskParticipant Model - Individuals/entities involved in tasks with identity verification
+model TaskParticipant {
+  id                String   @id @default(uuid())
+  task_id           String   // Foreign key to tasks table
+  participant_type  String   // e.g., LOAN, GUARANTOR, CUSTOMER
+  participant_id    String   // Hashed customer_number or entity ID
+  is_face_matched   Boolean  @default(false) // Facial recognition verification
+  is_qr_matched     Boolean  @default(false) // QR code verification
+  payment_amount    Decimal? @db.Decimal(18, 2) // Field-collected payment (nullable)
+  created_at        DateTime @default(now())
+  
+  // Relations
+  task              Task     @relation(fields: [task_id], references: [task_id], onDelete: Cascade)
+  customer          Customer @relation(fields: [participant_id], references: [customer_number], onDelete: Cascade)
+
+  @@unique([task_id, participant_id])
+  @@index([task_id])
+  @@index([participant_id])
+  @@index([participant_type])
+  @@map("task_participants")
+}
+
+// LoanSnapshot Model - Latest state of active loans for portfolio monitoring
+model LoanSnapshot {
+  id                  String   @id @default(uuid())
+  customer_number     String   // Links to customers table
+  loan_id             String   // Unique loan identifier
+  principal_amount    Decimal  @db.Decimal(18, 2) // Original disbursed amount
+  outstanding_amount  Decimal  @db.Decimal(18, 2) // Current remaining balance
+  dpd                 Int      // Days Past Due (0 = current, >0 = delinquent)
+  created_at          DateTime @default(now())
+  
+  // Relations
+  customer            Customer @relation(fields: [customer_number], references: [customer_number], onDelete: Cascade)
+
+  @@index([customer_number])
+  @@index([loan_id])
+  @@index([dpd])
+  @@map("loan_snapshots")
+}
