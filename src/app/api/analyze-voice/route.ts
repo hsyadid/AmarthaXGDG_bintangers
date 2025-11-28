@@ -63,7 +63,7 @@ export async function POST(request: Request) {
 
         // Analyze text with Gemini
         const analysisResult = await analyzeVoiceText(text, category as "revenue" | "expense");
-
+        console.log("Result:", analysisResult);
         return NextResponse.json({
             text: text,
             analysis: analysisResult

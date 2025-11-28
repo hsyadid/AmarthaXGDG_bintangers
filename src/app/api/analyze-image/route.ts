@@ -13,8 +13,10 @@ export async function POST(req: NextRequest) {
             );
         }
 
+
         const result = await analyzeImage(base64Image);
 
+        console.log("Result:", result);
         return NextResponse.json({ result });
     } catch (error) {
         console.error("Error in analyze-image route:", error);

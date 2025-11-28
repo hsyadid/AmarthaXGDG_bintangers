@@ -1,20 +1,38 @@
 import { IconUpload, IconImage } from "./Icons";
 import TransactionList from "./TransactionList";
 import SummaryCard from "./SummaryCard";
+import { useRef } from "react";
 
 interface PhotoSectionProps {
     photoUploaded: boolean;
     setPhotoUploaded: (uploaded: boolean) => void;
+    onAnalyze: (file: File) => void;
 }
 
-export default function PhotoSection({ photoUploaded, setPhotoUploaded }: PhotoSectionProps) {
+export default function PhotoSection({ photoUploaded, setPhotoUploaded, onAnalyze }: PhotoSectionProps) {
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            onAnalyze(e.target.files[0]);
+        }
+    };
+
     return (
         <>
             <div className="mb-5">
                 <label className="text-sm font-medium text-slate-700 block mb-3">Upload Foto</label>
+                <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                />
+
                 {!photoUploaded ? (
                     <div
-                        onClick={() => setPhotoUploaded(true)}
+                        onClick={() => fileInputRef.current?.click()}
                         className="border-2 border-[#8E44AD] rounded-2xl p-8 cursor-pointer hover:bg-[#8E44AD]/5 transition flex flex-col items-center justify-center gap-4"
                     >
                         <IconUpload />
@@ -36,50 +54,17 @@ export default function PhotoSection({ photoUploaded, setPhotoUploaded }: PhotoS
                             </div>
                         </div>
                         <button
-                            onClick={() => setPhotoUploaded(false)}
+                            onClick={() => {
+                                setPhotoUploaded(false);
+                                if (fileInputRef.current) fileInputRef.current.value = "";
+                            }}
                             className="w-full bg-gray-200 text-slate-700 py-2 rounded-lg text-sm font-medium hover:bg-gray-300"
                         >
-                            Tambah Foto
+                            Ganti Foto
                         </button>
                     </div>
                 )}
             </div>
-
-            {photoUploaded && (
-                <>
-                    <div className="mb-5">
-                        <label className="text-sm font-medium text-slate-700 block mb-3">Detail Transaksi Terdeteksi</label>
-                        <TransactionList
-                            transactions={[
-                                { id: "1", type: "Pemasukan", category: "Penjualan Jasa", amount: 250000, description: "Jahit baju - Ibu Ani" },
-                                { id: "2", type: "Pemasukan", category: "Penjualan Jasa", amount: 150000, description: "Perbaikan celana - Pak Budi" },
-                                { id: "3", type: "Pemasukan", category: "Penjualan Jasa", amount: 200000, description: "Jahit kebaya - Ibu Siti" },
-                                { id: "4", type: "Pengeluaran", category: "Bahan Baku", amount: 180000, description: "Kain katun dan benang" },
-                                { id: "5", type: "Pengeluaran", category: "Operasional", amount: 50000, description: "Listrik dan air" },
-                                { id: "6", type: "Pengeluaran", category: "Transportasi", amount: 30000, description: "Ongkos beli bahan" },
-                            ]}
-                        />
-                    </div>
-
-                    <div className="bg-cyan-50 rounded-lg p-3 mb-4">
-                        <div className="text-sm text-gray-600 mb-2">Ringkasan dari 6 transaksi</div>
-                        <div className="flex justify-between mb-2">
-                            <div className="text-xs text-gray-500">Total Pemasukan</div>
-                            <div className="text-sm text-green-600 font-medium">Rp 600.000</div>
-                        </div>
-                        <div className="flex justify-between">
-                            <div className="text-xs text-gray-500">Total Pengeluaran</div>
-                            <div className="text-sm text-red-600 font-medium">Rp 100.000</div>
-                        </div>
-                    </div>
-
-                    <SummaryCard
-                        title="Ringkasan Harian"
-                        label="Net Income:"
-                        value="Rp 500.000"
-                    />
-                </>
-            )}
         </>
     );
 }

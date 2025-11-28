@@ -4,7 +4,6 @@ import SummaryCard from "./SummaryCard";
 interface Transaction {
     id: string;
     type: string;
-    category: string;
     amount: number;
     description: string;
 }
@@ -20,6 +19,7 @@ interface ManualSectionProps {
     transactions: Transaction[];
     handleAddTransaction: () => void;
     handleDeleteTransaction: (id: string) => void;
+    handleUpdateTransaction: (id: string, field: keyof Transaction, value: any) => void;
     perTransactionIncome: number;
     totalExpense: number;
     perTransactionNetIncome: number;
@@ -36,6 +36,7 @@ export default function ManualSection({
     transactions,
     handleAddTransaction,
     handleDeleteTransaction,
+    handleUpdateTransaction,
     perTransactionIncome,
     totalExpense,
     perTransactionNetIncome,
@@ -48,8 +49,8 @@ export default function ManualSection({
                     <button
                         onClick={() => setInputType("total")}
                         className={`flex-1 py-3 rounded-2xl border-2 transition flex flex-col items-center gap-1 ${inputType === "total"
-                                ? 'bg-[#8E44AD]/10 border-[#8E44AD] text-[#8E44AD]'
-                                : 'border-gray-300 text-gray-600'
+                            ? 'bg-[#8E44AD]/10 border-[#8E44AD] text-[#8E44AD]'
+                            : 'border-gray-300 text-gray-600'
                             }`}
                     >
                         <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z" /></svg>
@@ -58,8 +59,8 @@ export default function ManualSection({
                     <button
                         onClick={() => setInputType("perTransaksi")}
                         className={`flex-1 py-3 rounded-2xl border-2 transition flex flex-col items-center gap-1 ${inputType === "perTransaksi"
-                                ? 'bg-[#8E44AD]/10 border-[#8E44AD] text-[#8E44AD]'
-                                : 'border-gray-300 text-gray-600'
+                            ? 'bg-[#8E44AD]/10 border-[#8E44AD] text-[#8E44AD]'
+                            : 'border-gray-300 text-gray-600'
                             }`}
                     >
                         <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5-7l-3 3.72L9 13l-3 4h12L14 10z" /></svg>
@@ -117,25 +118,24 @@ export default function ManualSection({
                                 <div className="space-y-2 mb-3">
                                     <div>
                                         <label className="text-xs text-gray-600 font-medium block mb-1">Tipe</label>
-                                        <select className="w-full p-2 rounded-md bg-gray-100 border border-gray-300 text-sm text-slate-700">
+                                        <select
+                                            value={tx.type}
+                                            onChange={(e) => handleUpdateTransaction(tx.id, "type", e.target.value)}
+                                            className="w-full p-2 rounded-md bg-gray-100 border border-gray-300 text-sm text-slate-700"
+                                        >
                                             <option>Pemasukan (Credit)</option>
                                             <option>Pengeluaran (Debit)</option>
                                         </select>
                                     </div>
 
-                                    <div>
-                                        <label className="text-xs text-gray-600 font-medium block mb-1">Kategori</label>
-                                        <select className="w-full p-2 rounded-md bg-gray-100 border border-gray-300 text-sm text-slate-700">
-                                            <option>Penjualan Jasa</option>
-                                            <option>Penjualan Produk</option>
-                                        </select>
-                                    </div>
+
 
                                     <div>
                                         <label className="text-xs text-gray-600 font-medium block mb-1">Jumlah (Rp)</label>
                                         <input
-                                            type="text"
+                                            type="number"
                                             value={tx.amount}
+                                            onChange={(e) => handleUpdateTransaction(tx.id, "amount", Number(e.target.value))}
                                             className="w-full p-2 rounded-md bg-gray-100 border border-gray-300 text-sm text-slate-700"
                                         />
                                     </div>
@@ -145,6 +145,7 @@ export default function ManualSection({
                                         <input
                                             type="text"
                                             value={tx.description}
+                                            onChange={(e) => handleUpdateTransaction(tx.id, "description", e.target.value)}
                                             className="w-full p-2 rounded-md bg-gray-100 border border-gray-300 text-sm text-slate-700"
                                         />
                                     </div>
