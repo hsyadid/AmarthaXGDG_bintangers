@@ -195,9 +195,10 @@ export async function getCustomersByBranch(branch_id: string) {
     });
 
     // Extract unique customer numbers
+    // participant_id in TaskParticipant maps to customer_number in Customer
     const customerNumbers = [
       ...new Set(
-        tasks.flatMap((task) => task.participants.map((p) => p.customer_number))
+        tasks.flatMap((task) => task.participants.map((p) => p.participant_id))
       ),
     ];
 
@@ -205,5 +206,176 @@ export async function getCustomersByBranch(branch_id: string) {
   } catch (error) {
     console.error('Error fetching customers by branch:', error);
     return { success: false, error: 'Failed to fetch customers by branch' };
+  }
+}
+
+/**
+ * Feature columns required for the prediction API
+ * Note: Actual column names in loan_latest table (lowercase marital columns)
+ */
+const FEATURE_COLS = [
+  'amount',
+  'principal_amount',
+  'outstanding_amount',
+  'dpd',
+  'religion',
+  'utilization',
+  'is_high_dpd',
+  'is_evergreen',
+  'age_years',
+  'num_bills_so_far',
+  'num_paid_so_far',
+  'scheduled_dow',
+  'scheduled_dom',
+  'marital_married',  // lowercase in DB
+  'marital_widowed',  // lowercase in DB
+  'cum_paid',
+  'ever_paid_raw',
+  'marital_nan',
+  'purpose_freq',
+  'weekly_revenue',
+  'weekly_expense',
+  'rev_lag1',
+  'exp_lag1',
+  'margin_lag1',
+  'rev_mean_4',
+  'rev_std_4',
+  'rev_vol_4',
+  'rev_trend_4',
+];
+
+/**
+ * Get prediction body by querying loan_latest table for a customer
+ * Returns the formatted JSON body ready to send to the prediction API
+ * @param customer_number - The customer_number (not customer_id) from loan_latest table
+ */
+export async function getPredictionBody(customer_number: string) {
+  try {
+    // Query loan_latest table using raw SQL since it's not in Prisma schema
+    // Column names are from constant array so safe to interpolate
+    const escapedCols = FEATURE_COLS.map(col => `"${col}"`).join(', ');
+    
+    // Escape customer_number to prevent SQL injection
+    // Replace single quotes with double single quotes for SQL escaping
+    const escapedCustomerNumber = customer_number.replace(/'/g, "''");
+    
+    // Build the query - column names are safe, customer_number is escaped
+    // Note: loan_latest uses customer_number, not customer_id
+    const query = `
+      SELECT ${escapedCols}
+      FROM loan_latest
+      WHERE customer_number = '${escapedCustomerNumber}'
+      LIMIT 1
+    `;
+    
+    const result = await prisma.$queryRawUnsafe<Array<Record<string, any>>>(query);
+
+    if (!result || result.length === 0) {
+      return { 
+        success: false, 
+        error: `No data found in loan_latest for customer_number: ${customer_number}` 
+      };
+    }
+
+    const row = result[0];
+
+    // Map the row data to the required format
+    // Convert boolean-like fields and ensure proper types
+    // Note: API expects marital_MARRIED/marital_WIDOWED (uppercase) but DB has lowercase
+    const instance = {
+      amount: parseFloat(row.amount) || 0,
+      principal_amount: parseFloat(row.principal_amount) || 0,
+      outstanding_amount: parseFloat(row.outstanding_amount) || 0,
+      dpd: parseInt(row.dpd) || 0,
+      religion: parseInt(row.religion) || 0,
+      utilization: parseFloat(row.utilization) || 0,
+      is_high_dpd: row.is_high_dpd === true || row.is_high_dpd === 1 || row.is_high_dpd === '1' ? 1 : 0,
+      is_evergreen: row.is_evergreen === true || row.is_evergreen === 1 || row.is_evergreen === '1' ? 1 : 0,
+      age_years: parseFloat(row.age_years) || 0,
+      num_bills_so_far: parseInt(row.num_bills_so_far) || 0,
+      num_paid_so_far: parseInt(row.num_paid_so_far) || 0,
+      scheduled_dow: parseInt(row.scheduled_dow) || 0,
+      scheduled_dom: parseInt(row.scheduled_dom) || 0,
+      // Map from DB lowercase to API uppercase format
+      marital_MARRIED: row.marital_married === true || row.marital_married === 1 || row.marital_married === '1' || row.marital_married === 'true',
+      marital_WIDOWED: row.marital_widowed === true || row.marital_widowed === 1 || row.marital_widowed === '1' || row.marital_widowed === 'true',
+      cum_paid: parseInt(row.cum_paid) || 0,
+      ever_paid_raw: parseInt(row.ever_paid_raw) || 0,
+      marital_nan: row.marital_nan === true || row.marital_nan === 1 || row.marital_nan === '1' || row.marital_nan === 'true',
+      purpose_freq: parseInt(row.purpose_freq) || 0,
+      weekly_revenue: parseFloat(row.weekly_revenue) || 0,
+      weekly_expense: parseFloat(row.weekly_expense) || 0,
+      rev_lag1: parseFloat(row.rev_lag1) || 0,
+      exp_lag1: parseFloat(row.exp_lag1) || 0,
+      margin_lag1: parseFloat(row.margin_lag1) || 0,
+      rev_mean_4: parseFloat(row.rev_mean_4) || 0,
+      rev_std_4: parseFloat(row.rev_std_4) || 0,
+      rev_vol_4: parseFloat(row.rev_vol_4) || 0,
+      rev_trend_4: parseFloat(row.rev_trend_4) || 0,
+    };
+
+    const body = {
+      instances: [instance],
+    };
+
+    return { success: true, data: body };
+  } catch (error: any) {
+    console.error('Error getting prediction body:', error);
+    return { 
+      success: false, 
+      error: `Failed to get prediction body: ${error.message}` 
+    };
+  }
+}
+
+/**
+ * Hit the prediction endpoint with the formatted body
+ * Returns the prediction score from the API
+ * @param customer_number - The customer_number from loan_latest table
+ */
+export async function predictRiskScore(customer_number: string) {
+  try {
+    // First get the prediction body
+    const bodyResult = await getPredictionBody(customer_number);
+    
+    if (!bodyResult.success || !bodyResult.data) {
+      return {
+        success: false,
+        error: bodyResult.error || 'Failed to prepare prediction body',
+      };
+    }
+
+    // Hit the prediction endpoint
+    const response = await fetch(
+      'https://aura-risk-api-164395237442.asia-southeast2.run.app/predict',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bodyResult.data),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return {
+        success: false,
+        error: `API request failed with status ${response.status}: ${errorText}`,
+      };
+    }
+
+    const predictionResult = await response.json();
+    
+    return {
+      success: true,
+      data: predictionResult,
+    };
+  } catch (error: any) {
+    console.error('Error predicting risk score:', error);
+    return {
+      success: false,
+      error: `Failed to predict risk score: ${error.message}`,
+    };
   }
 }
