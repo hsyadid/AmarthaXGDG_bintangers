@@ -330,12 +330,82 @@ export async function getPredictionBody(customer_number: string) {
 }
 
 /**
+ * Get weekly revenue and expense for a customer within a specific week
+ * Calculates the week start (Monday) and end (Sunday) for the given date
+ * @param customer_number - The customer_number to query
+ * @param date - The date to calculate the week for (week will be Monday-Sunday containing this date)
+ * @returns Object with weekly_revenue and weekly_expense
+ */
+export async function getWeeklyCashFlow(customer_number: string, date: Date) {
+  try {
+    // Calculate week start (Monday) and end (Sunday) for the given date
+    const targetDate = new Date(date);
+    const dayOfWeek = targetDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Convert to Monday = 0
+    
+    // Get Monday of the week
+    const weekStart = new Date(targetDate);
+    weekStart.setDate(targetDate.getDate() - daysFromMonday);
+    weekStart.setHours(0, 0, 0, 0);
+    
+    // Get Sunday of the week (end of week)
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
+    
+    // Query cash flows for this customer in this week
+    const cashFlows = await prisma.cashFlow.findMany({
+      where: {
+        customer_number,
+        date: {
+          gte: weekStart,
+          lte: weekEnd,
+        },
+      },
+    });
+    
+    // Calculate totals by type
+    let weeklyRevenue = 0;
+    let weeklyExpense = 0;
+    
+    cashFlows.forEach((cf) => {
+      const amount = parseFloat(cf.amount.toString());
+      if (cf.type === 'REVENUE') {
+        weeklyRevenue += amount;
+      } else if (cf.type === 'EXPENSE') {
+        weeklyExpense += amount;
+      }
+    });
+    
+    return {
+      success: true,
+      data: {
+        weekly_revenue: weeklyRevenue,
+        weekly_expense: weeklyExpense,
+        week_start: weekStart,
+        week_end: weekEnd,
+      },
+    };
+  } catch (error: any) {
+    console.error('Error getting weekly cash flow:', error);
+    return {
+      success: false,
+      error: `Failed to get weekly cash flow: ${error.message}`,
+    };
+  }
+}
+
+/**
  * Hit the prediction endpoint with the formatted body
  * Returns the prediction score from the API
  * @param customer_number - The customer_number from loan_latest table
+ * @param predictionDate - Optional date to calculate weekly cash flow for (defaults to today)
  */
-export async function predictRiskScore(customer_number: string) {
+export async function predictRiskScore(customer_number: string, predictionDate?: Date) {
   try {
+    // Use provided date or default to today
+    const targetDate = predictionDate || new Date();
+    
     // First get the prediction body
     const bodyResult = await getPredictionBody(customer_number);
     
@@ -344,6 +414,22 @@ export async function predictRiskScore(customer_number: string) {
         success: false,
         error: bodyResult.error || 'Failed to prepare prediction body',
       };
+    }
+
+    // Get weekly cash flow for the specified date
+    const weeklyCashFlowResult = await getWeeklyCashFlow(customer_number, targetDate);
+    
+    if (!weeklyCashFlowResult.success || !weeklyCashFlowResult.data) {
+      return {
+        success: false,
+        error: weeklyCashFlowResult.error || 'Failed to get weekly cash flow',
+      };
+    }
+
+    // Replace weekly_revenue and weekly_expense in the prediction body
+    if (bodyResult.data.instances && bodyResult.data.instances.length > 0) {
+      bodyResult.data.instances[0].weekly_revenue = weeklyCashFlowResult.data.weekly_revenue;
+      bodyResult.data.instances[0].weekly_expense = weeklyCashFlowResult.data.weekly_expense;
     }
 
     // Hit the prediction endpoint
@@ -378,6 +464,111 @@ export async function predictRiskScore(customer_number: string) {
     return {
       success: false,
       error: `Failed to predict risk score: ${error.message}`,
+    };
+  }
+}
+
+/**
+ * Save risk score to risk_customers table
+ * Extracts the risk value from the API response and stores it
+ * @param customer_number - The customer_number
+ * @param riskResponse - The API response from predictRiskScore (format: { risk: [number] })
+ * @param date - Optional date for the risk record (defaults to now)
+ * @returns Success status and the created record
+ */
+export async function saveRiskScore(
+  customer_number: string,
+  riskResponse: { risk: number[] },
+  date?: Date
+) {
+  try {
+    // Extract risk value from the response array
+    // API returns: { "risk": [0.07162851812969029] }
+    if (!riskResponse.risk || !Array.isArray(riskResponse.risk) || riskResponse.risk.length === 0) {
+      return {
+        success: false,
+        error: 'Invalid risk response format. Expected { risk: [number] }',
+      };
+    }
+
+    const riskValue = riskResponse.risk[0];
+    const riskDate = date || new Date();
+
+    // Create record in risk_customers table
+    const record = await prisma.risk_customers.create({
+      data: {
+        customer_number,
+        risk: riskValue,
+        date: riskDate,
+      },
+    });
+
+    return {
+      success: true,
+      data: record,
+    };
+  } catch (error: any) {
+    console.error('Error saving risk score:', error);
+    return {
+      success: false,
+      error: `Failed to save risk score: ${error.message}`,
+    };
+  }
+}
+
+/**
+ * Predict risk score and automatically save it to the database
+ * This is a convenience function that combines predictRiskScore and saveRiskScore
+ * @param customer_number - The customer_number from loan_latest table
+ * @param predictionDate - Optional date to calculate weekly cash flow for (defaults to today)
+ * @param saveToDb - Whether to save the result to risk_customers table (default: true)
+ * @returns Success status, prediction result, and saved record (if saved)
+ */
+export async function predictAndSaveRiskScore(
+  customer_number: string,
+  predictionDate?: Date,
+  saveToDb: boolean = true
+) {
+  try {
+    // Get prediction
+    const predictionResult = await predictRiskScore(customer_number, predictionDate);
+
+    if (!predictionResult.success || !predictionResult.data) {
+      return {
+        success: false,
+        error: predictionResult.error || 'Failed to get prediction',
+      };
+    }
+
+    // Save to database if requested
+    let savedRecord = null;
+    if (saveToDb) {
+      const saveResult = await saveRiskScore(
+        customer_number,
+        predictionResult.data,
+        predictionDate
+      );
+
+      if (!saveResult.success) {
+        // Log error but don't fail the whole operation
+        console.warn('Failed to save risk score to database:', saveResult.error);
+      } else {
+        savedRecord = saveResult.data;
+      }
+    }
+
+    return {
+      success: true,
+      data: {
+        prediction: predictionResult.data,
+        savedRecord,
+      },
+    };
+  } catch (error: any) {
+    console.error('Error in predictAndSaveRiskScore:', error);
+    return {
+      success: false,
+      error: `Failed to predict and save risk score: ${error.message}`,
     };
   }
 }
