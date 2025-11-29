@@ -7,7 +7,7 @@ import PhotoSection from "./PhotoSection";
 import VoiceSection from "./VoiceSection";
 import ValidationModal from "./ValidationModal";
 import { getCashFlows, getCashFlowTotal } from "@/actions/cashflow";
-import { predictRiskScore } from "@/actions/data-processing";
+import { predictAndSaveCurrentCustomerRisk } from "@/actions/data-processing";
 
 interface Transaction {
     id: string;
@@ -200,18 +200,18 @@ export default function CashflowInputSection({ date = new Date(), readOnly = fal
         if (readOnly) return;
         setIsLoading(true);
         try {
+            // Save current cashflow first
             await handleSave();
 
-            const customerNumber = process.env.CUSTOMER_NUMBER || "1234567890";
+            // Predict and save risk score for current customer
+            const result = await predictAndSaveCurrentCustomerRisk();
 
-            const result = await predictRiskScore(customerNumber);
-
-            if (result.success) {
-                alert(`Prediction Success! Risk Score: ${JSON.stringify(result.data)}`);
+            if (result.success && 'data' in result) {
+                const data = result.data;
+                alert(`Prediction Success! Risk Score: ${JSON.stringify(data)}`);
             } else {
                 alert(`Prediction Failed: ${result.error}`);
             }
-
 
         } catch (error) {
             console.error("Error closing book:", error);

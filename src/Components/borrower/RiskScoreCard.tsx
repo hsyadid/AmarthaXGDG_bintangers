@@ -30,7 +30,7 @@ export default function RiskScoreCard({
     const changeColor = isImprovement ? "text-green-600" : "text-red-600";
     // Menambahkan tanda + atau - secara eksplisit
     const sign = riskChange > 0 ? "+ " : "";
-    const changeMessage = `${sign}${riskChange} % dari minggu lalu`;
+    const changeMessage = `${sign}${riskChange.toFixed(1)} % dari minggu lalu`;
 
     const riskColorBg = getRiskScoreBgColor(riskScore);
     const riskColorText = getRiskScoreTextColor(riskScore);
@@ -87,7 +87,7 @@ export default function RiskScoreCard({
                     {/* Teks di Tengah Lingkaran */}
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                         <span className="text-6xl md:text-7xl font-extrabold text-slate-700">
-                            {riskScore} <span className="text-4xl md:text-5xl">%</span>
+                            {riskScore.toFixed(1)} <span className="text-4xl md:text-5xl">%</span>
                         </span>
                     </div>
                 </div>

@@ -75,10 +75,10 @@ export async function prepareCustomerDataForPrediction(customer_number: string) 
         net_cash_flow: netCashFlow,
         latest_loan: latestLoan
           ? {
-              principal_amount: parseFloat(latestLoan.principal_amount.toString()),
-              outstanding_amount: parseFloat(latestLoan.outstanding_amount.toString()),
-              dpd: latestLoan.dpd,
-            }
+            principal_amount: parseFloat(latestLoan.principal_amount.toString()),
+            outstanding_amount: parseFloat(latestLoan.outstanding_amount.toString()),
+            dpd: latestLoan.dpd,
+          }
           : null,
       },
       behavioral_metrics: {
@@ -255,11 +255,11 @@ export async function getPredictionBody(customer_number: string) {
     // Query loan_latest table using raw SQL since it's not in Prisma schema
     // Column names are from constant array so safe to interpolate
     const escapedCols = FEATURE_COLS.map(col => `"${col}"`).join(', ');
-    
+
     // Escape customer_number to prevent SQL injection
     // Replace single quotes with double single quotes for SQL escaping
     const escapedCustomerNumber = customer_number.replace(/'/g, "''");
-    
+
     // Build the query - column names are safe, customer_number is escaped
     // Note: loan_latest uses customer_number, not customer_id
     const query = `
@@ -268,13 +268,13 @@ export async function getPredictionBody(customer_number: string) {
       WHERE customer_number = '${escapedCustomerNumber}'
       LIMIT 1
     `;
-    
+
     const result = await prisma.$queryRawUnsafe<Array<Record<string, any>>>(query);
 
     if (!result || result.length === 0) {
-      return { 
-        success: false, 
-        error: `No data found in loan_latest for customer_number: ${customer_number}` 
+      return {
+        success: false,
+        error: `No data found in loan_latest for customer_number: ${customer_number}`
       };
     }
 
@@ -322,9 +322,9 @@ export async function getPredictionBody(customer_number: string) {
     return { success: true, data: body };
   } catch (error: any) {
     console.error('Error getting prediction body:', error);
-    return { 
-      success: false, 
-      error: `Failed to get prediction body: ${error.message}` 
+    return {
+      success: false,
+      error: `Failed to get prediction body: ${error.message}`
     };
   }
 }
@@ -342,17 +342,17 @@ export async function getWeeklyCashFlow(customer_number: string, date: Date) {
     const targetDate = new Date(date);
     const dayOfWeek = targetDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
     const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Convert to Monday = 0
-    
+
     // Get Monday of the week
     const weekStart = new Date(targetDate);
     weekStart.setDate(targetDate.getDate() - daysFromMonday);
     weekStart.setHours(0, 0, 0, 0);
-    
+
     // Get Sunday of the week (end of week)
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
     weekEnd.setHours(23, 59, 59, 999);
-    
+
     // Query cash flows for this customer in this week
     const cashFlows = await prisma.cashFlow.findMany({
       where: {
@@ -363,12 +363,12 @@ export async function getWeeklyCashFlow(customer_number: string, date: Date) {
         },
       },
     });
-    
+
     // Calculate totals by type
     let weeklyRevenue = 0;
     let weeklyExpense = 0;
-    
-    cashFlows.forEach((cf) => {
+
+    cashFlows.forEach((cf: { amount: { toString: () => string; }; type: string; }) => {
       const amount = parseFloat(cf.amount.toString());
       if (cf.type === 'REVENUE') {
         weeklyRevenue += amount;
@@ -376,7 +376,7 @@ export async function getWeeklyCashFlow(customer_number: string, date: Date) {
         weeklyExpense += amount;
       }
     });
-    
+
     return {
       success: true,
       data: {
@@ -405,10 +405,10 @@ export async function predictRiskScore(customer_number: string, predictionDate?:
   try {
     // Use provided date or default to today
     const targetDate = predictionDate || new Date();
-    
+
     // First get the prediction body
     const bodyResult = await getPredictionBody(customer_number);
-    
+
     if (!bodyResult.success || !bodyResult.data) {
       return {
         success: false,
@@ -418,7 +418,7 @@ export async function predictRiskScore(customer_number: string, predictionDate?:
 
     // Get weekly cash flow for the specified date
     const weeklyCashFlowResult = await getWeeklyCashFlow(customer_number, targetDate);
-    
+
     if (!weeklyCashFlowResult.success || !weeklyCashFlowResult.data) {
       return {
         success: false,
@@ -454,7 +454,7 @@ export async function predictRiskScore(customer_number: string, predictionDate?:
 
     const predictionResult = await response.json();
     console.log(predictionResult);
-    
+
     return {
       success: true,
       data: predictionResult,
@@ -566,6 +566,35 @@ export async function predictAndSaveRiskScore(
     };
   } catch (error: any) {
     console.error('Error in predictAndSaveRiskScore:', error);
+    return {
+      success: false,
+      error: `Failed to predict and save risk score: ${error.message}`,
+    };
+  }
+}
+
+/**
+ * Predict and save risk score for the current customer (from environment variable)
+ * Uses today's date for prediction
+ * This is a convenience wrapper for client-side components that can't access process.env
+ * @returns Success status, prediction result, and saved record
+ */
+export async function predictAndSaveCurrentCustomerRisk() {
+  try {
+    const customerNumber = process.env.CUSTOMER_NUMBER;
+
+    if (!customerNumber) {
+      return {
+        success: false,
+        error: 'CUSTOMER_NUMBER not configured in environment variables'
+      };
+    }
+
+    const today = new Date();
+
+    return predictAndSaveRiskScore(customerNumber, today, true);
+  } catch (error: any) {
+    console.error('Error in predictAndSaveCurrentCustomerRisk:', error);
     return {
       success: false,
       error: `Failed to predict and save risk score: ${error.message}`,
