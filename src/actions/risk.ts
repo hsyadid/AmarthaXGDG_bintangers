@@ -169,6 +169,47 @@ export async function deleteRiskCustomer(id: string) {
      RISK MAJELIS CRUD
 ============================= */
 
+/**
+ * Get majelis ID by customer number
+ * Searches through risk_majelis records to find which majelis the customer belongs to
+ * @param customer_number - The customer number to search for
+ * @returns The id_majelis if found, or null if not found
+ */
+export async function getMajelisIdByCustomerNumber(customer_number: string) {
+  try {
+    // Find the most recent risk_majelis record that contains this customer_number
+    const majelisRecord = await prisma.risk_majelis.findFirst({
+      where: {
+        customer_number: {
+          has: customer_number // Check if array contains this customer_number
+        }
+      },
+      orderBy: {
+        date: 'desc' // Get the most recent record
+      },
+      select: {
+        id_majelis: true,
+        customer_number: true
+      }
+    });
+
+    if (!majelisRecord) {
+      return { success: false, error: 'Customer not found in any majelis' };
+    }
+
+    return {
+      success: true,
+      data: {
+        id_majelis: majelisRecord.id_majelis,
+        customer_numbers: majelisRecord.customer_number
+      }
+    };
+  } catch (error) {
+    console.error('Error getting majelis ID by customer number:', error);
+    return { success: false, error: 'Failed to get majelis ID' };
+  }
+}
+
 export async function createRiskMajelis(data: RiskMajelisInput) {
   const finalDate = normalizeDate(data.date || new Date());
 

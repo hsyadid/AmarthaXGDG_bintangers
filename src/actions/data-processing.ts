@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/db';
+import { createRiskMajelis, getMajelisIdByCustomerNumber, getRiskMajelisByDate, updateRiskMajelis } from './risk';
 
 /**
  * Prepare customer data for Vertex AI prediction
@@ -530,6 +531,7 @@ export async function predictAndSaveRiskScore(
   saveToDb: boolean = true
 ) {
   try {
+    
     // Get prediction
     const predictionResult = await predictRiskScore(customer_number, predictionDate);
 
@@ -579,10 +581,34 @@ export async function predictAndSaveRiskScore(
  * This is a convenience wrapper for client-side components that can't access process.env
  * @returns Success status, prediction result, and saved record
  */
+// export async function predictAndSaveCurrentCustomerRisk() {
+//   try {
+//     const customerNumber = process.env.CUSTOMER_NUMBER;
+
+//     if (!customerNumber) {
+//       return {
+//         success: false,
+//         error: 'CUSTOMER_NUMBER not configured in environment variables'
+//       };
+//     }
+
+//     const today = new Date();
+
+//     return predictAndSaveRiskScore(customerNumber, today, true);
+//   } catch (error: any) {
+//     console.error('Error in predictAndSaveCurrentCustomerRisk:', error);
+//     return {
+//       success: false,
+//       error: `Failed to predict and save risk score: ${error.message}`,
+//     };
+//   }
+// }
+
 export async function predictAndSaveCurrentCustomerRisk() {
   try {
     const customerNumber = process.env.CUSTOMER_NUMBER;
 
+    console.log('Customer Number:', customerNumber);
     if (!customerNumber) {
       return {
         success: false,
@@ -592,7 +618,99 @@ export async function predictAndSaveCurrentCustomerRisk() {
 
     const today = new Date();
 
-    return predictAndSaveRiskScore(customerNumber, today, true);
+    // 1. Predict & Save INDIVIDUAL Risk
+    const individualResult = await predictAndSaveRiskScore(customerNumber, today, true);
+
+    if (!individualResult.success || !individualResult.data) {
+      return individualResult; // Return error if individual prediction fails
+    }
+
+    console.log('Individual Risk Saved:', individualResult.data);
+    // --- START: MAJELIS RISK LOGIC ---
+    try {
+      // 2. Get Customer's Majelis ID using the function from risk.ts
+      
+      const majelisResult = await getMajelisIdByCustomerNumber(customerNumber);
+
+      console.log('Majelis Result:', majelisResult);
+
+      if (majelisResult.success && majelisResult.data) {
+        const majelisId = majelisResult.data.id_majelis;
+        const memberNumbers = majelisResult.data.customer_numbers;
+
+        // 3. Calculate Aggregate Majelis Risk (Average Strategy)
+        let totalRisk = 0;
+        let validRiskCount = 0;
+
+        console.log('Majelis Members:', memberNumbers);
+        // Kita loop setiap member untuk mendapatkan skor risiko terakhir mereka
+        for (const memberNo of memberNumbers) {
+          let riskValue = 0;
+
+          console.log('Processing Member:', memberNo);
+
+          if (memberNo === customerNumber) {
+            // Jika member adalah customer yang BARU SAJA diprediksi, pakai hasil prediksi tadi
+            // API response format: { risk: [0.123] }
+            riskValue = individualResult.data.prediction.risk[0];
+            validRiskCount++;
+            totalRisk += riskValue;
+          } else {
+            // Jika member lain, ambil riwayat risiko terakhir dari DB
+            const lastRisk = await prisma.risk_customers.findFirst({
+              where: { customer_number: memberNo },
+              orderBy: { date: 'desc' }
+            });
+
+            if (lastRisk) {
+              riskValue = lastRisk.risk;
+              validRiskCount++;
+              totalRisk += riskValue;
+            }
+          }
+        }
+
+        // Hitung rata-rata (jika tidak ada data, risk = 0)
+        const averageMajelisRisk = validRiskCount > 0 ? totalRisk / validRiskCount : 0;
+
+        console.log('Average Majelis Risk:', averageMajelisRisk);
+
+        // 4. Check if majelis risk already exists for today
+        const existingMajelisRisk = await getRiskMajelisByDate(majelisId, today);
+
+        if (existingMajelisRisk.success && existingMajelisRisk.data) {
+          // Update existing record
+          await updateRiskMajelis(majelisId, today, averageMajelisRisk);
+          console.log(`Majelis Risk Updated: ${averageMajelisRisk} for Majelis ${majelisId}`);
+        } else {
+          // Create new record
+          await createRiskMajelis({
+            id_majelis: majelisId,
+            customer_numbers: memberNumbers, // Array of strings (sesuai gambar _text)
+            risk: averageMajelisRisk,
+            date: today
+          });
+          console.log(`Majelis Risk Created: ${averageMajelisRisk} for Majelis ${majelisId}`);
+        }
+      } else {
+        console.warn(`Customer ${customerNumber} does not belong to any Majelis.`);
+      }
+
+    } catch (majelisError) {
+      // Kita catch error majelis agar tidak menggagalkan return function utama
+      // karena prediksi individual user sudah berhasil.
+      console.error('Error calculating/saving Majelis risk:', majelisError);
+    }
+    // --- END: MAJELIS RISK LOGIC ---
+
+    return {
+      success: true,
+      data: {
+        individual: individualResult.data,
+        message: "Individual risk saved. Majelis risk calculation attempted."
+      }
+    };
+
   } catch (error: any) {
     console.error('Error in predictAndSaveCurrentCustomerRisk:', error);
     return {
@@ -601,3 +719,4 @@ export async function predictAndSaveCurrentCustomerRisk() {
     };
   }
 }
+
