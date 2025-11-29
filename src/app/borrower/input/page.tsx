@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import CashflowInputSection from "@/Components/cashflow/CashflowInputSection";
 import { getCashFlowTotal } from "@/actions/cashflow";
+import BottomNavigation from "@/Components/cashflow/BottomNavigation";
 
 // Icon components
 const IconArrowLeft = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>;
@@ -228,16 +229,7 @@ export default function ManualInputPage() {
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-between items-center px-6 py-3 z-20">
-        <button className="flex flex-col items-center gap-1 flex-1 text-gray-500 hover:text-slate-700">
-          <IconHome />
-          <span className="text-gray-500 text-xs">Home</span>
-        </button>
-        <button className="flex flex-col items-center gap-1 flex-1 text-[#8E44AD] hover:text-[#7a3a8e]">
-          <IconPlus />
-          <span className="text-[#8E44AD] text-xs font-medium">Add Cashflow</span>
-        </button>
-      </div>
+      <BottomNavigation />
     </div>
   );
 }
