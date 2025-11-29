@@ -45,23 +45,15 @@ export default function MembersRiskList({ members = [] }: MembersRiskListProps) 
                     return (
                         <div key={index} className="bg-gray-50 rounded-2xl border border-gray-200 p-4 flex justify-between items-center">
                             <div>
-                                <p className="text-slate-700 font-normal text-base">{member.name}</p>
-                                {member.riskChange !== 0 && (
-                                    <p className={`${changeColor} text-xs mt-1`}>{changeText}</p>
-                                )}
-                                {member.riskChange === 0 && (
-                                    <div className={`${riskColorBg} rounded-full px-3 py-1 w-fit mt-1`}>
-                                        <span className={`${riskColorText} text-xs`}>Risk: {member.risk}%</span>
-                                    </div>
-                                )}
-                            </div>
-                            {member.riskChange !== 0 ? (
-                                <div className={`${riskColorBg} rounded-full px-3 py-1 whitespace-nowrap`}>
-                                    <span className={`${riskColorText} text-xs`}>Risk: {member.risk}%</span>
+                                <p className="text-slate-700 font-medium text-base">{member.name}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-gray-500 text-xs">Perubahan:</span>
+                                    <span className={`${changeColor} text-xs font-semibold`}>{changeText}</span>
                                 </div>
-                            ) : (
-                                <span className="text-gray-400 text-xs">~</span>
-                            )}
+                            </div>
+                            <div className={`${riskColorBg} rounded-full px-3 py-1 whitespace-nowrap`}>
+                                <span className={`${riskColorText} text-xs font-bold`}>{member.risk}%</span>
+                            </div>
                         </div>
                     );
                 })}

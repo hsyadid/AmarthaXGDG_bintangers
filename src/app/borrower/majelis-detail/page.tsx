@@ -104,38 +104,41 @@ export default function MajelisDetailPage() {
 
           {/* Rata-rata Persentase Majelis (Pie Chart) */}
           <div className="bg-white rounded-2xl shadow-lg p-6">
-            <div className="flex items-center gap-4">
-              <div className="relative" style={{ width: circleSize, height: circleSize }}>
-                <svg width={circleSize} height={circleSize} className="transform -rotate-90 origin-center">
+            <h2 className="text-xl font-semibold text-[#8E44AD] mb-6">Rata-rata Persentase Majelis</h2>
+
+            <div className="flex flex-col items-center justify-center space-y-4">
+              <div className="relative" style={{ width: 180, height: 180 }}>
+                <svg width={180} height={180} className="transform -rotate-90 origin-center">
                   <circle
                     stroke="#e5e7eb"
                     fill="transparent"
-                    strokeWidth={strokeWidth}
-                    r={radius}
-                    cx={circleSize / 2}
-                    cy={circleSize / 2}
+                    strokeWidth={12}
+                    r={(180 - 12) / 2}
+                    cx={90}
+                    cy={90}
                   />
                   <circle
                     stroke={strokeColor}
                     fill="transparent"
-                    strokeWidth={strokeWidth}
-                    strokeDasharray={circumference}
-                    strokeDashoffset={strokeDashoffset}
+                    strokeWidth={12}
+                    strokeDasharray={2 * Math.PI * ((180 - 12) / 2)}
+                    strokeDashoffset={(2 * Math.PI * ((180 - 12) / 2)) - (Math.min(avgRisk, 100) / 100) * (2 * Math.PI * ((180 - 12) / 2))}
                     strokeLinecap="round"
-                    r={radius}
-                    cx={circleSize / 2}
-                    cy={circleSize / 2}
+                    r={(180 - 12) / 2}
+                    cx={90}
+                    cy={90}
                     className="transition-all duration-1000 ease-out"
                   />
                 </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-xs font-bold text-gray-700">{avgRisk.toFixed(0)}%</span>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-4xl font-extrabold text-slate-700">
+                    {avgRisk.toFixed(1)}<span className="text-2xl">%</span>
+                  </span>
                 </div>
               </div>
-              <div>
-                <div className="text-gray-600 text-lg font-semibold">Rata-rata Persentase Majelis</div>
-                <div className="text-slate-700 text-base font-bold" style={{ color: strokeColor }}>{data.majelis.averageRisk}%</div>
-                {/* Removed "Membaik/Memburuk" as requested */}
+
+              <div className="text-center">
+                <p className="text-gray-500 text-sm">Rata-rata risiko anggota majelis saat ini</p>
               </div>
             </div>
           </div>

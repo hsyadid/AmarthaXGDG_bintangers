@@ -25,21 +25,8 @@ export async function GET() {
         const majelisRes = await getRiskMajelisByCustomerAndDate(customerNumber, today);
 
         if (!majelisRes.success || !majelisRes.data) {
-            // Fallback or Empty State if user has no majelis data
-            // For now, returning a "Not Found" or empty structure might be appropriate,
-            // but to keep the UI from breaking, we might want to return a safe empty state
-            // or the dummy data if that's the desired fallback behavior.
-            // Given the prompt implies connecting real data, let's return a clear error or empty state
-            // so the frontend knows what's up.
-            // However, to be safe and follow the pattern of "providing all necessary data",
-            // let's return a structure with empty values if not found, or maybe the dummy data
-            // if that was the previous behavior for "no data".
-            // The previous code returned dummy data if `getMajelisRiskAnalytics` failed.
-            // Let's stick to returning a valid structure but with empty/default values if not found,
-            // OR return 404 if that's better.
-            // Let's return the dummy data as a fallback for now to ensure the UI renders something,
-            // but log the issue.
             console.log(`No majelis found for customer ${customerNumber}`);
+            // Return empty state structure
             return NextResponse.json({
                 majelis: {
                     name: "Belum Ada Majelis",
@@ -62,19 +49,35 @@ export async function GET() {
         }
 
         const currentMajelis = majelisRes.data;
-        const memberIds = currentMajelis.customer_number;
+        const memberIds = currentMajelis.customer_number; // This is the array of member IDs
+
+        interface MemberData {
+            id: string;
+            name: string;
+            riskScore: number;
+            riskChange: number;
+            riskLevel: string;
+        }
 
         // 2. Fetch Member Details and Risk with Trend
-        const membersData = await Promise.all(memberIds.map(async (id: string) => {
-            const customer = await getCustomerByCustomerNumber(id);
+        const dummyNames = [
+            "Siti Rahayu", "Budi Santoso", "Rina Wulan", "Dewi Sartika",
+            "Agus Pratama", "Sri Wahyuni", "Eko Saputra", "Nurul Hidayah",
+            "Indah Permata", "Rizky Ramadhan"
+        ];
 
-            // Current Risk
+        const membersData: MemberData[] = await Promise.all(memberIds.map(async (id: string, index: number) => {
+            // Use dummy name based on index
+            const customerName = dummyNames[index % dummyNames.length];
+
+            // Fetch Current Risk
             const riskRes = await getRiskCustomerByCustomerAndDate(id, today);
             const riskRaw = riskRes.success && riskRes.data ? riskRes.data.risk : 0;
             const riskScore = riskRaw * 100;
 
-            // Previous Risk (1 week ago)
+            // Fetch Previous Risk (1 week ago) for Risk Change
             let prevRiskRaw = 0;
+            // Calculate date 7 days before the *effective* date of the current risk record
             if (riskRes.success && riskRes.data) {
                 const effectiveDate = new Date(riskRes.data.date);
                 const prevDate = new Date(effectiveDate);
@@ -83,52 +86,48 @@ export async function GET() {
                 const prevRiskRes = await getRiskCustomerByCustomerAndDate(id, prevDate);
                 prevRiskRaw = prevRiskRes.success && prevRiskRes.data ? prevRiskRes.data.risk : 0;
             }
+
             const prevRiskScore = prevRiskRaw * 100;
-            const riskChange = riskScore - prevRiskScore;
+            const riskChange = parseFloat((riskScore - prevRiskScore).toFixed(1));
 
             return {
                 id: id,
-                name: customer.success && customer.data ? customer.data.purpose : `Anggota ${id.substring(0, 4)}`, // Fallback name
-                role: "Member",
+                name: customerName,
                 riskScore: riskScore,
                 riskChange: riskChange,
                 riskLevel: riskRaw < 0.1 ? 'Low' : riskRaw < 0.2 ? 'Moderate' : 'High'
             };
         }));
 
-        // Sort by risk (lowest risk first)
-        membersData.sort((a: { riskScore: number; }, b: { riskScore: number; }) => a.riskScore - b.riskScore);
+        // Sort members by risk score (lowest risk first)
+        membersData.sort((a, b) => a.riskScore - b.riskScore);
 
         // 3. Calculate Stats
-        const lowRiskCount = membersData.filter((m: { riskLevel: string; }) => m.riskLevel === 'Low').length;
-        const modRiskCount = membersData.filter((m: { riskLevel: string; }) => m.riskLevel === 'Moderate').length;
-        const highRiskCount = membersData.filter((m: { riskLevel: string; }) => m.riskLevel === 'High').length;
+        const lowRiskCount = membersData.filter(m => m.riskLevel === 'Low').length;
+        const modRiskCount = membersData.filter(m => m.riskLevel === 'Moderate').length;
+        const highRiskCount = membersData.filter(m => m.riskLevel === 'High').length;
 
         // 4. Determine Current User Position
-        const currentUserIndex = membersData.findIndex((m: { id: string; }) => m.id === customerNumber);
+        const currentUserIndex = membersData.findIndex(m => m.id === customerNumber);
         const currentUser = currentUserIndex !== -1 ? membersData[currentUserIndex] : null;
 
         // 5. Calculate Majelis Trend
-        // We need previous majelis data to calculate trend
         let majelisTrend = 'stable';
         const oneWeekAgo = new Date(currentMajelis.date);
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-        // We can't easily get the *exact* previous majelis record without a direct query by ID and date,
-        // but `getRiskMajelisByCustomerAndDate` logic finds the "latest Saturday".
-        // Let's try to find the record for 1 week ago using the same customer number.
         const prevMajelisRes = await getRiskMajelisByCustomerAndDate(customerNumber, oneWeekAgo);
 
         if (prevMajelisRes.success && prevMajelisRes.data) {
             const diff = currentMajelis.risk - prevMajelisRes.data.risk;
-            if (Math.abs(diff) >= 0.01) {
+            if (Math.abs(diff) >= 0.01) { // 1% threshold
                 majelisTrend = diff > 0 ? 'up' : 'down';
             }
         }
 
         return NextResponse.json({
             majelis: {
-                name: "Majelis Sejahtera", // This might need to be dynamic if we have Majelis names stored somewhere
+                name: "Majelis Sejahtera",
                 id: currentMajelis.id_majelis,
                 averageRisk: (currentMajelis.risk * 100).toFixed(1),
                 trend: majelisTrend
@@ -143,9 +142,9 @@ export async function GET() {
                 moderate: modRiskCount,
                 high: highRiskCount
             },
-            members: membersData.map((m: { name: any; riskScore: any; riskChange: any; }) => ({
+            members: membersData.map(m => ({
                 name: m.name,
-                risk: m.riskScore,
+                risk: parseFloat(m.riskScore.toFixed(1)),
                 riskChange: m.riskChange
             }))
         });
@@ -155,4 +154,3 @@ export async function GET() {
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
-

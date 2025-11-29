@@ -39,18 +39,18 @@ export async function prepareCustomerDataForPrediction(customer_number: string) 
 
     // Calculate aggregated metrics
     const totalRevenue = cashFlows
-      .filter((cf) => cf.type === 'REVENUE')
-      .reduce((sum, cf) => sum + parseFloat(cf.amount.toString()), 0);
+      .filter((cf: { type: string; }) => cf.type === 'REVENUE')
+      .reduce((sum: number, cf: { amount: { toString: () => string; }; }) => sum + parseFloat(cf.amount.toString()), 0);
 
     const totalExpense = cashFlows
-      .filter((cf) => cf.type === 'EXPENSE')
-      .reduce((sum, cf) => sum + parseFloat(cf.amount.toString()), 0);
+      .filter((cf: { type: string; }) => cf.type === 'EXPENSE')
+      .reduce((sum: number, cf: { amount: { toString: () => string; }; }) => sum + parseFloat(cf.amount.toString()), 0);
 
     const netCashFlow = totalRevenue - totalExpense;
 
     // Calculate task completion rate
     const completedTasks = customer.task_participants.filter(
-      (tp) => tp.task.task_status === 'COMPLETED'
+      (tp: { task: { task_status: string; }; }) => tp.task.task_status === 'COMPLETED'
     ).length;
     const taskCompletionRate =
       customer.task_participants.length > 0
@@ -86,13 +86,13 @@ export async function prepareCustomerDataForPrediction(customer_number: string) 
         total_tasks: customer.task_participants.length,
         completed_tasks: completedTasks,
       },
-      cash_flow_history: cashFlows.map((cf) => ({
+      cash_flow_history: cashFlows.map((cf: { type: any; amount: { toString: () => string; }; date: any; description: any; }) => ({
         type: cf.type,
         amount: parseFloat(cf.amount.toString()),
         date: cf.date,
         description: cf.description,
       })),
-      loan_history: customer.loan_snapshots.map((ls) => ({
+      loan_history: customer.loan_snapshots.map((ls: { principal_amount: { toString: () => string; }; outstanding_amount: { toString: () => string; }; dpd: any; created_at: any; }) => ({
         principal_amount: parseFloat(ls.principal_amount.toString()),
         outstanding_amount: parseFloat(ls.outstanding_amount.toString()),
         dpd: ls.dpd,
@@ -100,6 +100,7 @@ export async function prepareCustomerDataForPrediction(customer_number: string) 
       })),
     };
 
+    console.log(predictionData);
     return { success: true, data: predictionData };
   } catch (error) {
     console.error('Error preparing customer data:', error);
@@ -172,7 +173,7 @@ export async function getHighRiskCustomers() {
       take: 100,
     });
 
-    const customerNumbers = [...new Set(loanSnapshots.map((ls) => ls.customer_number))];
+    const customerNumbers = [...new Set(loanSnapshots.map((ls: { customer_number: any; }) => ls.customer_number))];
 
     return { success: true, data: customerNumbers };
   } catch (error) {
@@ -198,7 +199,7 @@ export async function getCustomersByBranch(branch_id: string) {
     // participant_id in TaskParticipant maps to customer_number in Customer
     const customerNumbers = [
       ...new Set(
-        tasks.flatMap((task) => task.participants.map((p) => p.participant_id))
+        tasks.flatMap((task: { participants: any[]; }) => task.participants.map((p: { participant_id: any; }) => p.participant_id))
       ),
     ];
 
@@ -366,6 +367,7 @@ export async function predictRiskScore(customer_number: string) {
     }
 
     const predictionResult = await response.json();
+    console.log(predictionResult);
     
     return {
       success: true,

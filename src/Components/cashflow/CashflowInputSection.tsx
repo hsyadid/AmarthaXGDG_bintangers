@@ -7,6 +7,7 @@ import PhotoSection from "./PhotoSection";
 import VoiceSection from "./VoiceSection";
 import ValidationModal from "./ValidationModal";
 import { getCashFlows, getCashFlowTotal } from "@/actions/cashflow";
+import { predictRiskScore } from "@/actions/data-processing";
 
 interface Transaction {
     id: string;
@@ -21,8 +22,8 @@ interface CashflowInputSectionProps {
 }
 
 export default function CashflowInputSection({ date = new Date(), readOnly = false }: CashflowInputSectionProps) {
-    const [revenue, setRevenue] = useState<string>("0");
-    const [expense, setExpense] = useState<string>("0");
+    const [revenue, setRevenue] = useState<number>(0);
+    const [expense, setExpense] = useState<number>(0);
     const [inputType, setInputType] = useState<string>("total");
     const [inputMethod, setInputMethod] = useState<string>("manual");
     const [photoUploaded, setPhotoUploaded] = useState<boolean>(false);
@@ -34,7 +35,7 @@ export default function CashflowInputSection({ date = new Date(), readOnly = fal
     const [pendingData, setPendingData] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(false);
 
-    const netIncome = Number(revenue) - Number(expense);
+    const netIncome = revenue - expense;
 
     // Fetch data when date changes
     useEffect(() => {
@@ -66,11 +67,11 @@ export default function CashflowInputSection({ date = new Date(), readOnly = fal
                         if (item.type === "REVENUE") rev += amount;
                         if (item.type === "EXPENSE") exp += amount;
                     });
-                    setRevenue(rev.toString());
-                    setExpense(exp.toString());
+                    setRevenue(rev);
+                    setExpense(exp);
                 } else {
-                    setRevenue("0");
-                    setExpense("0");
+                    setRevenue(0);
+                    setExpense(0);
                 }
 
                 // Fetch transactions list
@@ -124,21 +125,21 @@ export default function CashflowInputSection({ date = new Date(), readOnly = fal
             let payload: any = {};
 
             if (inputMethod === "manual" && inputType === "total") {
-                if (Number(revenue) > 0) {
+                if (revenue > 0) {
                     await fetch("/api/cashflow", {
                         method: "POST",
                         body: JSON.stringify({
                             mode: "total",
-                            total: { tipe: "revenue", amount: Number(revenue), desc: "Manual Total Revenue" }
+                            total: { tipe: "revenue", amount: revenue, desc: "Manual Total Revenue" }
                         })
                     });
                 }
-                if (Number(expense) > 0) {
+                if (expense > 0) {
                     await fetch("/api/cashflow", {
                         method: "POST",
                         body: JSON.stringify({
                             mode: "total",
-                            total: { tipe: "expense", amount: Number(expense), desc: "Manual Total Expense" }
+                            total: { tipe: "expense", amount: expense, desc: "Manual Total Expense" }
                         })
                     });
                 }
@@ -170,6 +171,31 @@ export default function CashflowInputSection({ date = new Date(), readOnly = fal
         } catch (error) {
             console.error("Error saving cashflow:", error);
             alert("Gagal menyimpan cashflow.");
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    async function handleCloseBook() {
+        if (readOnly) return;
+        setIsLoading(true);
+        try {
+            await handleSave();
+
+            const customerNumber = process.env.CUSTOMER_NUMBER || "1234567890";
+
+            const result = await predictRiskScore(customerNumber);
+
+            if (result.success) {
+                alert(`Prediction Success! Risk Score: ${JSON.stringify(result.data)}`);
+            } else {
+                alert(`Prediction Failed: ${result.error}`);
+            }
+
+            
+        } catch (error) {
+            console.error("Error closing book:", error);
+            alert("Terjadi kesalahan saat tutup buku.");
         } finally {
             setIsLoading(false);
         }
@@ -327,11 +353,7 @@ export default function CashflowInputSection({ date = new Date(), readOnly = fal
             {inputMethod === "manual" ? (
                 <ManualSection
                     inputType={inputType}
-                    setInputType={readOnly ? () => { } : setInputType} // Disable switching if readOnly? Or allow view switch?
-                    // Actually allowing view switch is fine for readOnly to see details.
-                    // But editing inside ManualSection needs to be disabled.
-                    // We need to pass readOnly to ManualSection or handle it there.
-                    // For now, let's just pass data and handle interactions.
+                    setInputType={readOnly ? () => { } : setInputType}
                     revenue={revenue}
                     setRevenue={readOnly ? () => { } : setRevenue}
                     expense={expense}
@@ -363,6 +385,12 @@ export default function CashflowInputSection({ date = new Date(), readOnly = fal
             {!readOnly && (
                 <button onClick={handleSave} className="w-full bg-[#8E44AD] text-white py-3 rounded-2xl font-medium mt-4">
                     Simpan Cashflow
+                </button>
+            )}
+
+            {!readOnly && (
+                <button onClick={handleCloseBook} className="w-full bg-[#8E44AD] text-white py-3 rounded-2xl font-medium mt-4">
+                    Close Book
                 </button>
             )}
 

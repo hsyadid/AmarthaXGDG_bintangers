@@ -11,10 +11,10 @@ interface Transaction {
 interface ManualSectionProps {
     inputType: string;
     setInputType: (type: string) => void;
-    revenue: string;
-    setRevenue: (value: string) => void;
-    expense: string;
-    setExpense: (value: string) => void;
+    revenue: number;
+    setRevenue: (value: number) => void;
+    expense: number;
+    setExpense: (value: number) => void;
     netIncome: number;
     transactions: Transaction[];
     handleAddTransaction: () => void;
@@ -80,8 +80,13 @@ export default function ManualSection({
                             <label className="text-sm text-slate-700 font-medium block mb-2">Total Revenue (Rp)</label>
                             <input
                                 type="text"
-                                value={revenue}
-                                onChange={(e) => !readOnly && setRevenue(e.target.value.replace(/[^0-9]/g, ''))}
+                                value={revenue === 0 ? '' : revenue}
+                                onChange={(e) => {
+                                    if (readOnly) return;
+                                    const val = e.target.value.replace(/[^0-9]/g, '');
+                                    setRevenue(val === '' ? 0 : parseInt(val, 10));
+                                }}
+                                placeholder="0"
                                 disabled={readOnly}
                                 className={`w-full p-3 rounded-md bg-gray-100 border border-gray-300 text-slate-700 ${readOnly ? 'opacity-70 cursor-not-allowed' : ''}`}
                             />
@@ -91,8 +96,13 @@ export default function ManualSection({
                             <label className="text-sm text-slate-700 font-medium block mb-2">Total Expense (Rp)</label>
                             <input
                                 type="text"
-                                value={expense}
-                                onChange={(e) => !readOnly && setExpense(e.target.value.replace(/[^0-9]/g, ''))}
+                                value={expense === 0 ? '' : expense}
+                                onChange={(e) => {
+                                    if (readOnly) return;
+                                    const val = e.target.value.replace(/[^0-9]/g, '');
+                                    setExpense(val === '' ? 0 : parseInt(val, 10));
+                                }}
+                                placeholder="0"
                                 disabled={readOnly}
                                 className={`w-full p-3 rounded-md bg-gray-100 border border-gray-300 text-slate-700 ${readOnly ? 'opacity-70 cursor-not-allowed' : ''}`}
                             />
