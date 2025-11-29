@@ -181,7 +181,6 @@ export default function CashflowInputSection({ date = new Date(), readOnly = fal
                 }
             }
 
-            alert("Cashflow berhasil disimpan!");
             // Refresh data? Or just let state update?
             // Ideally re-fetch or update local state.
             // For simplicity, let's trigger a re-fetch via window reload or callback?
@@ -190,7 +189,6 @@ export default function CashflowInputSection({ date = new Date(), readOnly = fal
 
         } catch (error) {
             console.error("Error saving cashflow:", error);
-            alert("Gagal menyimpan cashflow.");
         } finally {
             setIsLoading(false);
         }
@@ -208,14 +206,14 @@ export default function CashflowInputSection({ date = new Date(), readOnly = fal
 
             if (result.success && 'data' in result) {
                 const data = result.data;
-                alert(`Prediction Success! Risk Score: ${JSON.stringify(data)}`);
+               
             } else {
-                alert(`Prediction Failed: ${result.error}`);
+
             }
 
         } catch (error) {
             console.error("Error closing book:", error);
-            alert("Terjadi kesalahan saat tutup buku.");
+
         } finally {
             setIsLoading(false);
         }
@@ -261,14 +259,12 @@ export default function CashflowInputSection({ date = new Date(), readOnly = fal
                     setIsModalOpen(true);
                     setPhotoUploaded(true);
                 } else {
-                    alert("Gagal menganalisis gambar.");
                 }
                 setIsLoading(false);
             };
         } catch (error) {
             console.error("Error analyzing image:", error);
             setIsLoading(false);
-            alert("Terjadi kesalahan saat memproses gambar.");
         }
     }
 
@@ -291,11 +287,9 @@ export default function CashflowInputSection({ date = new Date(), readOnly = fal
                 setIsModalOpen(true);
                 setVoiceInputted(true);
             } else {
-                alert("Gagal menganalisis suara.");
             }
         } catch (error) {
             console.error("Error analyzing voice:", error);
-            alert("Terjadi kesalahan saat memproses suara.");
         } finally {
             setIsLoading(false);
         }

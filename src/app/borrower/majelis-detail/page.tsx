@@ -84,11 +84,10 @@ export default function MajelisDetailPage() {
       {/* Back button and title */}
       <div className="relative -mt-48 px-6">
         <Link href="/borrower" className="w-24 h-9 rounded-md bg-transparent text-white relative block">
-          <div className="w-4 h-4 left-3 top-2 absolute overflow-hidden">
-            <div className="w-1 h-2.5 left-[3.33px] top-[3.33px] absolute outline outline-[1.33px] outline-offset-[-0.67px] outline-white" />
-            <div className="w-2.5 h-0 left-[3.33px] top-[8px] absolute outline outline-[1.33px] outline-offset-[-0.67px] outline-white" />
-          </div>
-          <div className="absolute left-11 top-2 text-white text-sm font-medium">Back</div>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+            </svg>
+            <span className="font-medium">Back</span>
         </Link>
 
         <div className="mt-4">

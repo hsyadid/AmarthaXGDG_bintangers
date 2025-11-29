@@ -60,7 +60,6 @@ export default function VoiceSection({ voiceInputted, setVoiceInputted, onAnalyz
             visualize();
         } catch (err) {
             console.error("Error accessing microphone:", err);
-            alert("Gagal mengakses mikrofon. Pastikan izin diberikan.");
         }
     };
 

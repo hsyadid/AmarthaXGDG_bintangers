@@ -1,6 +1,7 @@
 import React from "react";
-import { 
-  getHighRiskMajelisCount, 
+import Link from "next/link";
+import {
+  getHighRiskMajelisCount,
   getHighRiskBorrowersCount,
   getMajelisRiskAnalytics,
   getBorrowerRiskAnalytics
@@ -70,6 +71,16 @@ export default async function RiskAnalyticsPage() {
       {/* Main Content (sidebar removed) */}
       <div className="w-full overflow-auto">
         <div className="p-8">
+          {/* Back Button */}
+          <div className="mb-6">
+            <Link href="/" className="inline-flex items-center gap-2 text-slate-700 hover:text-[#8E44AD] transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+              </svg>
+              <span className="font-medium">Back</span>
+            </Link>
+          </div>
+
           {/* Header */}
           <div className="mb-12">
             <h1 className="text-4xl font-bold text-slate-700 mb-2">
@@ -152,7 +163,7 @@ export default async function RiskAnalyticsPage() {
                       Members
                     </th>
                     <th className="text-left px-6 py-3 text-sm font-bold text-gray-600">
-                     Risk Score
+                      Risk Score
                     </th>
                     <th className="text-left px-6 py-3 text-sm font-bold text-gray-600">
                       Trend
@@ -280,7 +291,7 @@ export default async function RiskAnalyticsPage() {
                             className={`px-3 py-1 rounded-full text-sm font-normal ${getRiskScoreBgColor(borrower.riskScore * 100)}`}
                           >
                             <span className={getRiskScoreTextColor(borrower.riskScore * 100)}>
-                              {(borrower.riskScore * 100)}%
+                              {(borrower.riskScore * 100).toFixed(1)}%
                             </span>
                           </div>
                         </div>

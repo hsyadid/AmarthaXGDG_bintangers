@@ -56,7 +56,7 @@ export default function ValidationModal({ isOpen, onClose, onConfirm, data }: Va
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm transition-opacity">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-150 p-4 backdrop-blur-sm transition-opacity">
             <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl animate-in fade-in zoom-in-95 duration-200">
                 {/* Header Modal */}
                 <div className="p-5 border-b border-gray-100 flex-shrink-0">
