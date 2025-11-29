@@ -37,6 +37,14 @@ export default function CashflowInputSection({ date = new Date(), readOnly = fal
 
     const netIncome = revenue - expense;
 
+    // Helper to check if a date is today
+    const isDateToday = (checkDate: Date) => {
+        const today = new Date();
+        return checkDate.getDate() === today.getDate() &&
+            checkDate.getMonth() === today.getMonth() &&
+            checkDate.getFullYear() === today.getFullYear();
+    };
+
     // Fetch data when date changes
     useEffect(() => {
         const fetchData = async () => {
@@ -44,8 +52,20 @@ export default function CashflowInputSection({ date = new Date(), readOnly = fal
             // Reset input method to manual to ensure we don't get stuck in hidden views
             setInputMethod("manual");
 
+            const isTodayDate = isDateToday(date);
+
             try {
-                // Calculate start and end of the selected date
+                // If it's today, start with empty fields for new input
+                if (isTodayDate) {
+                    setRevenue(0);
+                    setExpense(0);
+                    setTransactions([]);
+                    setInputType("total");
+                    setIsLoading(false);
+                    return;
+                }
+
+                // For past dates, fetch and display existing data
                 const startOfDay = new Date(date);
                 startOfDay.setHours(0, 0, 0, 0);
 
@@ -192,7 +212,7 @@ export default function CashflowInputSection({ date = new Date(), readOnly = fal
                 alert(`Prediction Failed: ${result.error}`);
             }
 
-            
+
         } catch (error) {
             console.error("Error closing book:", error);
             alert("Terjadi kesalahan saat tutup buku.");

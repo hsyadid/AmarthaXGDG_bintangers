@@ -17,6 +17,7 @@ export default function ManualInputPage() {
   const [weekRevenue, setWeekRevenue] = useState(0);
   const [weekExpense, setWeekExpense] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [weekOffset, setWeekOffset] = useState(0); // 0 = current week, -1 = previous week, +1 = next week
 
   // Helper to get Monday of the current week
   const getMonday = (d: Date) => {
@@ -29,8 +30,15 @@ export default function ManualInputPage() {
   useEffect(() => {
     const today = new Date();
     setSelectedDate(today); // Set selectedDate on client side only
+  }, []);
 
-    const monday = getMonday(today);
+  useEffect(() => {
+    if (!selectedDate) return;
+
+    const baseDate = new Date();
+    baseDate.setDate(baseDate.getDate() + (weekOffset * 7));
+
+    const monday = getMonday(baseDate);
     const dates = [];
     for (let i = 0; i < 7; i++) {
       const nextDay = new Date(monday);
@@ -39,7 +47,7 @@ export default function ManualInputPage() {
     }
     setWeekDates(dates);
     fetchWeekData(dates[0], dates[6]);
-  }, []);
+  }, [weekOffset, selectedDate]);
 
   const fetchWeekData = async (start: Date, end: Date) => {
     setIsLoading(true);
@@ -143,16 +151,28 @@ export default function ManualInputPage() {
           {/* Week overview card */}
           <div className="bg-white rounded-2xl shadow-lg p-5">
             <div className="flex items-center justify-between mb-4">
-              <button className="text-[#8E44AD]">‹</button>
+              <button
+                onClick={() => setWeekOffset(prev => prev - 1)}
+                className="text-[#8E44AD] hover:bg-[#8E44AD]/10 rounded-full w-8 h-8 flex items-center justify-center transition-colors"
+              >
+                ‹
+              </button>
               <div className="text-center flex-1">
-                <h2 className="text-xl font-semibold text-[#8E44AD]">Minggu ini</h2>
+                <h2 className="text-xl font-semibold text-[#8E44AD]">
+                  {weekOffset === 0 ? 'Minggu ini' : weekOffset < 0 ? `${Math.abs(weekOffset)} minggu lalu` : `${weekOffset} minggu ke depan`}
+                </h2>
                 {weekDates.length > 0 && (
                   <p className="text-xs text-gray-500">
                     {weekDates[0].toLocaleDateString('id-ID', { month: 'short', day: 'numeric' })} - {weekDates[6].toLocaleDateString('id-ID', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </p>
                 )}
               </div>
-              <button className="text-[#8E44AD]">›</button>
+              <button
+                onClick={() => setWeekOffset(prev => prev + 1)}
+                className="text-[#8E44AD] hover:bg-[#8E44AD]/10 rounded-full w-8 h-8 flex items-center justify-center transition-colors"
+              >
+                ›
+              </button>
             </div>
 
             <div className="flex justify-between items-center gap-1 mb-4">
