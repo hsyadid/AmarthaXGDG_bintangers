@@ -1,0 +1,63 @@
+import React from 'react';
+import { getRiskScoreBgColor, getRiskScoreTextColor } from '@/lib/risk-utils';
+
+interface MemberRisk {
+    name: string;
+    risk: number;
+    riskChange: number;
+}
+
+interface MembersRiskListProps {
+    members?: MemberRisk[];
+}
+
+export default function MembersRiskList({ members = [] }: MembersRiskListProps) {
+    // Default dummy data if no members provided
+    const displayMembers = members.length > 0 ? members : [
+        { name: "Siti Rahayu", risk: 7.2, riskChange: -1.3 },
+        { name: "Ani Susanti", risk: 28.3, riskChange: 3.2 },
+        { name: "Rina Wulan", risk: 5.1, riskChange: 0 },
+        { name: "Putri Yani", risk: 11.2, riskChange: -2.3 },
+    ];
+
+    return (
+        <div className="bg-white rounded-2xl shadow-lg p-6 space-y-4">
+            <div className="mb-4">
+                <h2 className="text-xl font-semibold text-[#8E44AD]">Persentase Anggota Majelis</h2>
+                <p className="text-gray-600 text-sm mt-1">Transparansi risiko pembayaran antar anggota</p>
+            </div>
+
+            {/* Members List */}
+            <div className="space-y-3">
+                {displayMembers.map((member, index) => {
+                    const isImprovement = member.riskChange < 0;
+                    const isWorsening = member.riskChange > 0;
+                    const changeColor = isImprovement ? "text-green-500" : isWorsening ? "text-red-500" : "text-gray-400";
+                    const changeText = isImprovement
+                        ? `${member.riskChange}%`
+                        : isWorsening
+                            ? `+${member.riskChange}%`
+                            : "~";
+
+                    const riskColorBg = getRiskScoreBgColor(member.risk);
+                    const riskColorText = getRiskScoreTextColor(member.risk);
+
+                    return (
+                        <div key={index} className="bg-gray-50 rounded-2xl border border-gray-200 p-4 flex justify-between items-center">
+                            <div>
+                                <p className="text-slate-700 font-medium text-base">{member.name}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-gray-500 text-xs">Perubahan:</span>
+                                    <span className={`${changeColor} text-xs font-semibold`}>{changeText}</span>
+                                </div>
+                            </div>
+                            <div className={`${riskColorBg} rounded-full px-3 py-1 whitespace-nowrap`}>
+                                <span className={`${riskColorText} text-xs font-bold`}>{member.risk}%</span>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
