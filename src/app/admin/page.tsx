@@ -197,10 +197,10 @@ export default async function RiskAnalyticsPage() {
                             </div>
                           </div>
                           <div
-                            className={`px-3 py-1 rounded-full text-sm font-normal ${getRiskScoreBgColor(majelis.riskScore * 100)}`}
+                            className={`px-3 py-1 rounded-full text-sm font-normal ${getRiskScoreBgColor((majelis.riskScore * 100))}`}
                           >
                             <span className={getRiskScoreTextColor(majelis.riskScore * 100)}>
-                              {(majelis.riskScore * 100)}%
+                              {(majelis.riskScore * 100).toFixed(1)}%
                             </span>
                           </div>
                         </div>
